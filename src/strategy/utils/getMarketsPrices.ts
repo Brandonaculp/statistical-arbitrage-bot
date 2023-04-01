@@ -1,33 +1,33 @@
 import {
-  MarketResponseObject,
-  CandleResponseObject,
-} from "@dydxprotocol/v3-client";
-import getCandlesForMarket from "./getCandlesForMarket";
-import retry from "../../utils/retry";
-import config from "../../../config";
+    MarketResponseObject,
+    CandleResponseObject,
+} from '@dydxprotocol/v3-client'
+import { getCandlesForMarket } from './getCandlesForMarket'
+import { retry } from '../../utils'
+import config from '../../../config'
 
 interface MarketsPrices {
-  [market: string]: CandleResponseObject[];
+    [market: string]: CandleResponseObject[]
 }
 
-export default async function getMarketsPrices(markets: {
-  [market: string]: MarketResponseObject;
+export async function getMarketsPrices(markets: {
+    [market: string]: MarketResponseObject
 }) {
-  const marketsPrices: MarketsPrices = {};
+    const marketsPrices: MarketsPrices = {}
 
-  const promises = Object.keys(markets).map((market) =>
-    retry(getCandlesForMarket, [market], 1)
-      .then((marketPrices) => {
-        if (marketPrices.length === config.CANDLES_LIMIT) {
-          marketsPrices[market] = marketPrices;
-        }
-      })
-      .catch((e) => {
-        console.log(`[-]Failed to fetch ${market} market prices.`);
-      })
-  );
+    const promises = Object.keys(markets).map((market) =>
+        retry(getCandlesForMarket, [market], 1)
+            .then((marketPrices) => {
+                if (marketPrices.length === config.CANDLES_LIMIT) {
+                    marketsPrices[market] = marketPrices
+                }
+            })
+            .catch((e) => {
+                console.log(`[-]Failed to fetch ${market} market prices.`)
+            })
+    )
 
-  await Promise.all(promises);
+    await Promise.all(promises)
 
-  return marketsPrices;
+    return marketsPrices
 }

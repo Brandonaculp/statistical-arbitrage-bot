@@ -1,12 +1,12 @@
-import client from "../dydxClient";
+import { client } from '../dydxClient'
 
-export default async function getMarkets() {
-  const { markets } = await client.public.getMarkets();
+export async function getMarkets() {
+    const { markets } = await client.public.getMarkets()
 
-  //TODO: what about other statuses
-  const onlineMarkets = Object.entries(markets).filter(
-    ([_, marketInfo]) => marketInfo.status === "ONLINE"
-  );
+    //TODO: what about other statuses
+    const onlineMarkets = Object.entries(markets).filter(
+        ([_, marketInfo]) => marketInfo.status === 'ONLINE'
+    )
 
-  return Object.fromEntries(onlineMarkets);
+    return Object.fromEntries(onlineMarkets)
 }
