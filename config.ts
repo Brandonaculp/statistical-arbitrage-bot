@@ -11,6 +11,8 @@ const configSchema = z.object({
         .default(CandleResolution.ONE_HOUR),
     CANDLES_LIMIT: z.number().lte(100).default(100),
     Z_SCORE_WINDOW: z.number().default(21),
+    PRODUCTION_API: z.string().nonempty(),
+    TESTNET_API: z.string().nonempty(),
 })
 
 export const config = configSchema.parse(process.env)

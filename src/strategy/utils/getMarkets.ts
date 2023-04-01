@@ -1,12 +1,14 @@
+import { Asset } from '@dydxprotocol/v3-client'
 import { client } from '../dydxClient'
 
 export async function getMarkets() {
     const { markets } = await client.public.getMarkets()
 
-    //TODO: what about other statuses
-    const onlineMarkets = Object.entries(markets).filter(
-        ([_, marketInfo]) => marketInfo.status === 'ONLINE'
+    const filteredMarkets = Object.entries(markets).filter(
+        ([_, marketInfo]) =>
+            marketInfo.status === 'ONLINE' &&
+            marketInfo.quoteAsset === Asset.USDC
     )
 
-    return Object.fromEntries(onlineMarkets)
+    return Object.fromEntries(filteredMarkets)
 }

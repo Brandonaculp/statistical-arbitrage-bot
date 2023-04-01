@@ -6,7 +6,7 @@ export async function getCandlesForMarket(market: string) {
     const { candles } = await client.public.getCandles({
         // @ts-ignore
         market,
-        resolution: CandleResolution.ONE_HOUR,
+        resolution: config.TIME_FRAME,
         limit: config.CANDLES_LIMIT,
     })
 

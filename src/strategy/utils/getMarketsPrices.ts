@@ -4,7 +4,7 @@ import {
 } from '@dydxprotocol/v3-client'
 import { getCandlesForMarket } from './getCandlesForMarket'
 import { retry } from '../../utils'
-import config from '../../../config'
+import { config } from '../../../config'
 
 interface MarketsPrices {
     [market: string]: CandleResponseObject[]
