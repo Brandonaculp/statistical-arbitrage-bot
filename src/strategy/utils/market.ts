@@ -1,13 +1,28 @@
-import {
-    MarketResponseObject,
-    CandleResponseObject,
-} from '@dydxprotocol/v3-client'
-import { getCandlesForMarket } from './getCandlesForMarket'
+import { MarketResponseObject } from '@dydxprotocol/v3-client'
 import { retry } from '../../utils'
 import { config } from '../../../config'
+import { client } from '../dydxClient'
+import { MarketsPrices } from './types'
 
-interface MarketsPrices {
-    [market: string]: CandleResponseObject[]
+export async function getCandlesForMarket(market: string) {
+    const { candles } = await client.public.getCandles({
+        // @ts-ignore
+        market,
+        resolution: config.TIME_FRAME,
+        limit: config.CANDLES_LIMIT,
+    })
+
+    return candles
+}
+
+export async function getMarkets() {
+    const { markets } = await client.public.getMarkets()
+
+    const filteredMarkets = Object.entries(markets).filter(
+        ([_, marketInfo]) => marketInfo.status === 'ONLINE'
+    )
+
+    return Object.fromEntries(filteredMarkets)
 }
 
 export async function getMarketsPrices(markets: {
