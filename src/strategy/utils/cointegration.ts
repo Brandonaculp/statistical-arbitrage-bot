@@ -1,34 +1,14 @@
 import { CandleResponseObject } from '@dydxprotocol/v3-client'
-import { CointResult, MarketsPrices } from './types'
-import { PythonShell } from 'python-shell'
+import { CointPair, CointResult, MarketsPrices } from './types'
+import axios from '../../api/customAxios'
 
-export async function calculateCoint(
-    series1: number[],
-    series2: number[]
-): Promise<CointResult> {
-    const messages = (await PythonShell.run('coint.py', {
-        scriptPath: 'src/python-scripts/',
-        args: [JSON.stringify(series1), JSON.stringify(series2)],
-    })) as string[]
-
-    const message = messages[0]
-    const parsedMessage = message
-        .slice(1, -1)
-        .split(', ')
-        .map((value) => {
-            if (value === 'inf') return Infinity
-            else if (value === '-inf') return -Infinity
-            return Number(value)
+export async function calculateCoint(series1: number[], series2: number[]) {
+    return (
+        await axios.post<CointResult>('/calculate_cointegration', {
+            series1,
+            series2,
         })
-
-    return {
-        cointFlag: parsedMessage[0],
-        pValue: parsedMessage[1],
-        tValue: parsedMessage[2],
-        criticalValue: parsedMessage[3],
-        hedgeRatio: parsedMessage[4],
-        zeroCrossing: parsedMessage[5],
-    }
+    ).data
 }
 
 function extractClosePrices(candleResponses: CandleResponseObject[]) {
@@ -36,7 +16,7 @@ function extractClosePrices(candleResponses: CandleResponseObject[]) {
 }
 
 export async function getCointegratedPairs(prices: MarketsPrices) {
-    const cointPairs: CointResult[] = []
+    const cointPairs: CointPair[] = []
     const included: Record<string, boolean> = {}
 
     for (const sym1 of Object.keys(prices)) {
@@ -52,11 +32,11 @@ export async function getCointegratedPairs(prices: MarketsPrices) {
             const series2 = extractClosePrices(prices[sym2])
 
             const cointResult = await calculateCoint(series1, series2)
-            cointPairs.push(cointResult)
+            if (cointResult.cointFlag === 1)
+                cointPairs.push({ ...cointResult, sym1, sym2 })
         }
     }
-
     cointPairs.sort((a, b) => b.zeroCrossing - a.zeroCrossing)
 
-    console.log(cointPairs.slice(0, 20))
+    return cointPairs
 }

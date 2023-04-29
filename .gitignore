@@ -1,4 +1,35 @@
-node_modules
-build
+# Compiled Python files
+__pycache__/
+*.pyc
+
+# Local development settings
 .env
+venv/
+
+# Dependency directories
+venv/
+env/
+lib/
+include/
+bin/
+share/
+python*.egg-info/
+dist/
+build/
+*.egg-info/
+*.egg
+
+# Editor/IDE settings
+.vscode/
+.idea/
+*.code-workspace
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+
+# Dependency directories
+node_modules
+
 marketPrices.json

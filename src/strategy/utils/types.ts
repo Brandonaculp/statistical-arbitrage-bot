@@ -12,3 +12,8 @@ export interface CointResult {
     hedgeRatio: number
     zeroCrossing: number
 }
+
+export interface CointPair extends CointResult {
+    sym1: string
+    sym2: string
+}
