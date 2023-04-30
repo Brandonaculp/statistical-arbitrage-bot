@@ -1,17 +1,20 @@
 import { CandleResponseObject } from '@dydxprotocol/v3-client'
 import { CointPair, CointResult, MarketsPrices } from './types'
-import axios from '../../api/customAxios'
+import { axiosInstance } from '../../utils'
 
-export async function calculateCoint(series1: number[], series2: number[]) {
-    return (
-        await axios.post<CointResult>('/calculate_cointegration', {
+async function calculateCoint(series1: number[], series2: number[]) {
+    const coint = await axiosInstance.post<CointResult>(
+        '/calculate_cointegration',
+        {
             series1,
             series2,
-        })
-    ).data
+        }
+    )
+
+    return coint.data
 }
 
-function extractClosePrices(candleResponses: CandleResponseObject[]) {
+export function extractClosePrices(candleResponses: CandleResponseObject[]) {
     return candleResponses.map((candleResponse) => Number(candleResponse.close))
 }
 

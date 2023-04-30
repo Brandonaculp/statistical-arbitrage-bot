@@ -2,6 +2,7 @@ import { getMarketsPrices, getMarkets } from './utils/market'
 import { writeFile, readFile, access } from 'fs/promises'
 import { MarketsPrices } from './utils/types'
 import { getCointegratedPairs } from './utils/cointegration'
+import { plotTrends } from './utils/plot'
 
 async function main() {
     const pricesFile = 'marketPrices.json'
@@ -19,7 +20,8 @@ async function main() {
     console.log('[+]Finding cointegrated pairs')
     const cointPairs = await getCointegratedPairs(prices)
 
-    console.log(cointPairs)
+    console.log('[+]Plotting trends')
+    await plotTrends('UNI-USD', 'DOGE-USD', prices)
 }
 
 main().catch((error) => {

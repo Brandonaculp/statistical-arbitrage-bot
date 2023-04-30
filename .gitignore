@@ -4,7 +4,6 @@ __pycache__/
 
 # Local development settings
 .env
-venv/
 
 # Dependency directories
 venv/

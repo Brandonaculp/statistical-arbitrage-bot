@@ -5,7 +5,7 @@
     "scripts": {
         "build": "tsc",
         "start:app": "rimraf ./build && yarn build && node ./build/src/strategy",
-        "start:api": "uvicorn src.api.main:app --reload",
+        "start:api": "uvicorn src.python.api.main:app --reload",
         "prepare": "husky install",
         "format": "pretty-quick --staged"
     },
