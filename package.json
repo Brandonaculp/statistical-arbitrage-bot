@@ -3,8 +3,8 @@
     "version": "0.0.0",
     "license": "unlicense",
     "scripts": {
-        "build": "tsc",
-        "start:app": "rimraf ./build && yarn build && node ./build/src/strategy",
+        "build": "rimraf ./build && tsc",
+        "start:app": "yarn build && node ./build/src/strategy",
         "start:api": "uvicorn src.python.api.main:app --reload",
         "prepare": "husky install",
         "format": "pretty-quick --staged"
@@ -14,10 +14,12 @@
         "axios": "^1.4.0",
         "dotenv": "^16.0.3",
         "rimraf": "^4.4.1",
+        "yargs": "^17.7.2",
         "zod": "^3.21.4"
     },
     "devDependencies": {
         "@types/node": "^18.15.11",
+        "@types/yargs": "^17.0.24",
         "husky": "^8.0.3",
         "prettier": "^2.8.7",
         "pretty-quick": "^3.1.3",
