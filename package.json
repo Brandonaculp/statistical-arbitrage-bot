@@ -12,10 +12,8 @@
     "dependencies": {
         "@dydxprotocol/v3-client": "^1.15.0",
         "axios": "^1.4.0",
-        "dotenv": "^16.0.3",
         "rimraf": "^4.4.1",
-        "yargs": "^17.7.2",
-        "zod": "^3.21.4"
+        "yargs": "^17.7.2"
     },
     "devDependencies": {
         "@types/node": "^18.15.11",

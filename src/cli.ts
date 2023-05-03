@@ -10,6 +10,6 @@ yargs(hideBin(process.argv))
         type: 'boolean',
     })
     .global('verbose')
-    .commandDir('commands', { exclude: /types\.js/ })
+    .commandDir('commands', { exclude: /^types\.(js|ts)$/ })
     .strict()
     .alias({ h: 'help' }).argv

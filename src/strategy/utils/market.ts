@@ -1,6 +1,5 @@
 import { MarketResponseObject } from '@dydxprotocol/v3-client'
 import { retry } from '../../utils'
-import { config } from '../../../config'
 import { client } from '../dydxClient'
 import { MarketsPrices } from './types'
 
@@ -8,8 +7,8 @@ export async function getCandlesForMarket(market: string) {
     const { candles } = await client.public.getCandles({
         // @ts-ignore
         market,
-        resolution: config.TIME_FRAME,
-        limit: config.CANDLES_LIMIT,
+        // resolution: config.TIME_FRAME,
+        // limit: config.CANDLES_LIMIT,
     })
 
     return candles
@@ -33,9 +32,9 @@ export async function getMarketsPrices(markets: {
     const promises = Object.keys(markets).map((market) =>
         retry(getCandlesForMarket, [market], 1)
             .then((marketPrices) => {
-                if (marketPrices.length === config.CANDLES_LIMIT) {
-                    marketsPrices[market] = marketPrices
-                }
+                // if (marketPrices.length === config.CANDLES_LIMIT) {
+                //     marketsPrices[market] = marketPrices
+                // }
             })
             .catch((e) => {
                 console.log(`[-]Failed to fetch ${market} market prices.`)
