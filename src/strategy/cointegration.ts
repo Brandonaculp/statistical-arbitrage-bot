@@ -1,6 +1,6 @@
 import { CandleResponseObject } from '@dydxprotocol/v3-client'
 import { CointPair, CointResult, MarketsPrices } from './types'
-import { axiosInstance } from '../../utils'
+import { axiosInstance } from '../utils/customAxios'
 
 async function calculateCoint(series1: number[], series2: number[]) {
     const coint = await axiosInstance.post<CointResult>(

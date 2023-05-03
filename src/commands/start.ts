@@ -1,7 +1,11 @@
 import type { Arguments, CommandBuilder } from 'yargs'
-import type { BaseOptions } from './types'
 import { CandleResolution } from '@dydxprotocol/v3-client'
-import { initClient } from '../strategy/dydxClient'
+import { access, readFile, writeFile } from 'fs/promises'
+import type { BaseOptions } from './types'
+import { initClient } from '../utils/dydxClient'
+import { getMarkets, getMarketsPrices } from '../strategy/market'
+import { getCointegratedPairs } from '../strategy/cointegration'
+import { MarketsPrices } from '../strategy/types'
 
 interface Options extends BaseOptions {
     'api-url': string
@@ -47,9 +51,24 @@ export const builder: CommandBuilder<Options, Options> = (yargs) =>
             default: CandleResolution.ONE_HOUR,
         })
 
-export const handler = (argv: Arguments<Options>) => {
-    const { apiUrl } = argv
+export const handler = async (argv: Arguments<Options>) => {
+    const { apiUrl, timeFrame, candlesLimit, zscoreWindow } = argv
 
-    // initialize dy/dx client
     initClient(apiUrl)
+
+    const pricesFile = 'marketPrices.json'
+    let prices: MarketsPrices
+
+    try {
+        await access(pricesFile)
+        prices = JSON.parse((await readFile(pricesFile)).toString())
+    } catch {
+        console.log('[+]Fetching markets')
+        const markets = await getMarkets()
+        console.log('[+]Fetching markets prices')
+        prices = await getMarketsPrices(markets, timeFrame, candlesLimit)
+        await writeFile('marketPrices.json', JSON.stringify(prices), 'utf-8')
+    }
+    console.log('[+]Finding cointegrated pairs')
+    const cointPairs = await getCointegratedPairs(prices)
 }
