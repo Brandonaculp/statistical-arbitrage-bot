@@ -18,8 +18,8 @@ interface Options extends BaseOptions {
     timeFrame: CandleResolution
 }
 
-export const command = 'start'
-export const desc = 'Start the bot'
+export const command = 'strategy'
+export const desc = 'Run the strategy'
 
 export const builder: CommandBuilder<Options, Options> = (yargs) =>
     yargs
@@ -71,4 +71,6 @@ export const handler = async (argv: Arguments<Options>) => {
     }
     console.log('[+]Finding cointegrated pairs')
     const cointPairs = await getCointegratedPairs(prices)
+
+    console.table(cointPairs)
 }

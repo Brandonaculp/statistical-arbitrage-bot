@@ -31,4 +31,10 @@ build/
 # Dependency directories
 node_modules
 
+# Prisma
+prisma/*
+!prisma/schema.prisma
+
+
+###
 marketPrices.json

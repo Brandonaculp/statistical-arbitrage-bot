@@ -4,19 +4,23 @@
     "license": "unlicense",
     "scripts": {
         "build": "rimraf ./build && tsc",
-        "start:app": "yarn build && node ./build/src/strategy",
+        "start": "yarn build && chmod +x ./build/cli.js && ./build/cli.js",
         "start:api": "uvicorn src.python.api.main:app --reload",
         "prepare": "husky install",
         "format": "pretty-quick --staged"
     },
     "dependencies": {
         "@dydxprotocol/v3-client": "^1.15.0",
+        "@prisma/client": "4.13.0",
         "axios": "^1.4.0",
+        "prisma": "^4.13.0",
         "rimraf": "^4.4.1",
+        "ws": "^8.13.0",
         "yargs": "^17.7.2"
     },
     "devDependencies": {
         "@types/node": "^18.15.11",
+        "@types/ws": "^8.5.4",
         "@types/yargs": "^17.0.24",
         "husky": "^8.0.3",
         "prettier": "^2.8.7",
