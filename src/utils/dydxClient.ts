@@ -1,9 +1,11 @@
-import { DydxClient, MarketResponseObject } from '@dydxprotocol/v3-client'
+import { DydxClient } from '@dydxprotocol/v3-client'
 import WebSocket from 'ws'
-import { prisma } from './prismaClient'
+import { handleMarketsWSMessage } from '../execution/calculations'
 
-interface MarketsResponseObject {
-    [market: string]: Partial<MarketResponseObject>
+interface WebSocketMessage {
+    type: 'subscribed' | 'channel_data'
+    channel: 'v3_accounts' | 'v3_orderbook' | 'v3_trades' | 'v3_markets'
+    contents: any
 }
 
 export let client: DydxClient
@@ -13,7 +15,7 @@ export function initClient(httpHost: string) {
     client = new DydxClient(httpHost)
 }
 
-export function initWsClient(wsHost: string) {
+export function initWSClient(wsHost: string) {
     ws = new WebSocket(wsHost)
 
     const message = {
@@ -26,26 +28,13 @@ export function initWsClient(wsHost: string) {
     })
 
     ws.on('message', (rawData) => {
-        const data = JSON.parse(rawData.toString())
-        const markets = data['contents'] as MarketsResponseObject
+        const data = JSON.parse(rawData.toString()) as WebSocketMessage
 
-        for (const [name, marketData] of Object.entries(markets)) {
-            if (marketData.indexPrice) {
-                const indexPrice = parseFloat(marketData.indexPrice)
-
-                prisma.market.upsert({
-                    where: {
-                        name,
-                    },
-                    update: {
-                        indexPrice,
-                    },
-                    create: {
-                        name,
-                        indexPrice,
-                    },
-                })
-            }
+        switch (data.channel) {
+            case 'v3_markets':
+                handleMarketsWSMessage(data.contents)
+                break
+            case 'v3_orderbook':
         }
     })
 }
