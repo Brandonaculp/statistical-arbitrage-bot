@@ -34,6 +34,7 @@ node_modules
 # Prisma
 prisma/*
 !prisma/schema.prisma
+!prisma/seed.ts
 
 
 ###

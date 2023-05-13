@@ -8,9 +8,20 @@ datasource db {
 }
 
 model Market {
-  id         Int    @id @default(autoincrement())
-  name       String @unique
+  id         Int     @id @default(autoincrement())
+  name       String  @unique
   indexPrice Float
+  orders     Order[]
 
   @@index([name])
+}
+
+model Order {
+  id       Int    @id @default(autoincrement())
+  price    Float
+  size     Float
+  offset   BigInt
+  side     String
+  Market   Market @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  marketId Int
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { CandleResolution } from '@dydxprotocol/v3-client'
-import yargs from 'yargs'
+import yargs, { command } from 'yargs'
 import { hideBin } from 'yargs/helpers'
 
 yargs(hideBin(process.argv))

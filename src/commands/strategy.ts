@@ -14,9 +14,9 @@ export const desc = 'Run the strategy'
 export const builder: CommandBuilder<Options, Options> = (yargs) => yargs
 
 export const handler = async (argv: Arguments<Options>) => {
-    const { apiUrl, timeFrame, candlesLimit } = argv
+    const { httpHost, timeFrame, candlesLimit } = argv
 
-    initClient(apiUrl)
+    initClient(httpHost)
 
     const pricesFile = 'marketPrices.json'
     let prices: MarketsPrices

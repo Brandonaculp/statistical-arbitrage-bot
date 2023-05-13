@@ -1,5 +1,6 @@
 import type { Arguments, CommandBuilder } from 'yargs'
 import type { BaseOptions } from './types'
+import { initWSClient } from '../utils/dydxClient'
 
 interface Options extends BaseOptions {
     ticker1: string
@@ -58,4 +59,8 @@ export const builder: CommandBuilder<Options, Options> = (yargs) =>
             default: true,
         })
 
-export const handler = async (argv: Arguments<Options>) => {}
+export const handler = async (argv: Arguments<Options>) => {
+    const { wsHost } = argv
+
+    const ws = initWSClient(wsHost)
+}
