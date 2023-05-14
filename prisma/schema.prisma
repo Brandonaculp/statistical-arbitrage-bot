@@ -3,25 +3,28 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./mydb.db"
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
 }
 
 model Market {
-  id         Int     @id @default(autoincrement())
+  id         String  @id @default(auto()) @map("_id") @db.ObjectId
   name       String  @unique
   indexPrice Float
   orders     Order[]
-
-  @@index([name])
 }
 
 model Order {
-  id       Int    @id @default(autoincrement())
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
   price    Float
   size     Float
   offset   BigInt
-  side     String
+  side     Side
   Market   Market @relation(fields: [marketId], references: [id], onDelete: Cascade)
-  marketId Int
+  marketId String @db.ObjectId
+}
+
+enum Side {
+  BID
+  ASK
 }

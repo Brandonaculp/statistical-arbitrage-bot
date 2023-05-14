@@ -54,5 +54,9 @@ export function initWSClient(wsHost: string) {
         }
     })
 
+    ws.on('error', (error) => {
+        console.log(error)
+    })
+
     return ws
 }
