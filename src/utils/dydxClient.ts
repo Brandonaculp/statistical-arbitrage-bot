@@ -1,9 +1,6 @@
 import { DydxClient, Market } from '@dydxprotocol/v3-client'
+import { Queue } from 'bullmq'
 import WebSocket from 'ws'
-import {
-    handleMarketsWSMessage,
-    handleOrderbookWSMessage,
-} from '../execution/calculations'
 
 export interface WebSocketMessage {
     type: 'subscribed' | 'channel_data'
@@ -20,6 +17,13 @@ export function initClient(httpHost: string) {
 }
 
 export function initWSClient(wsHost: string) {
+    const queue = new Queue('dydx-ws', {
+        connection: {
+            host: 'localhost',
+            port: 6379,
+        },
+    })
+
     ws = new WebSocket(wsHost)
 
     const marketsMessage = {
@@ -44,18 +48,20 @@ export function initWSClient(wsHost: string) {
     ws.on('message', async (rawData) => {
         const data = JSON.parse(rawData.toString()) as WebSocketMessage
 
-        switch (data.channel) {
-            case 'v3_markets':
-                await handleMarketsWSMessage(data)
-                break
-            case 'v3_orderbook':
-                await handleOrderbookWSMessage(data)
-                break
+        if (data.channel) {
+            queue.add(data.channel, data, {
+                removeOnComplete: true,
+                attempts: 2,
+                backoff: {
+                    type: 'exponential',
+                    delay: 1000,
+                },
+            })
         }
     })
 
     ws.on('error', (error) => {
-        console.log(error)
+        console.error(error)
     })
 
     return ws

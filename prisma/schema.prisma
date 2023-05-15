@@ -3,25 +3,25 @@ generator client {
 }
 
 datasource db {
-  provider = "mongodb"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 model Market {
-  id         String  @id @default(auto()) @map("_id") @db.ObjectId
+  id         Int     @id @default(autoincrement())
   name       String  @unique
   indexPrice Float
   orders     Order[]
 }
 
 model Order {
-  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  id       Int    @id @default(autoincrement())
   price    Float
   size     Float
   offset   BigInt
   side     Side
   Market   Market @relation(fields: [marketId], references: [id], onDelete: Cascade)
-  marketId String @db.ObjectId
+  marketId Int
 }
 
 enum Side {

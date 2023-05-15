@@ -37,27 +37,39 @@ export async function handleOrderbookWSMessage(data: WebSocketMessage) {
         const orders = data.contents as OrderbookSubscribeResponseObject
 
         for (const bid of orders.bids) {
-            await prisma.order.create({
-                data: {
-                    price: parseFloat(bid.price),
-                    size: parseFloat(bid.size),
-                    offset: parseFloat(bid.offset),
-                    side: 'bid',
-                    marketId: market.id,
-                },
-            })
+            const price = parseFloat(bid.price)
+            const size = parseFloat(bid.size)
+            const offset = parseFloat(bid.offset)
+
+            if (size > 0) {
+                await prisma.order.create({
+                    data: {
+                        price,
+                        size,
+                        offset,
+                        side: 'BID',
+                        marketId: market.id,
+                    },
+                })
+            }
         }
 
         for (const ask of orders.asks) {
-            await prisma.order.create({
-                data: {
-                    price: parseFloat(ask.price),
-                    size: parseFloat(ask.size),
-                    offset: parseInt(ask.offset),
-                    side: 'ask',
-                    marketId: market.id,
-                },
-            })
+            const price = parseFloat(ask.price)
+            const size = parseFloat(ask.size)
+            const offset = parseFloat(ask.offset)
+
+            if (size > 0) {
+                await prisma.order.create({
+                    data: {
+                        price,
+                        size,
+                        offset,
+                        side: 'ASK',
+                        marketId: market.id,
+                    },
+                })
+            }
         }
 
         return
@@ -71,7 +83,7 @@ export async function handleOrderbookWSMessage(data: WebSocketMessage) {
         const size = parseFloat(bid[1])
 
         const order = await prisma.order.findFirst({
-            where: { price, side: 'bid' },
+            where: { price, side: 'BID', marketId: market.id },
         })
         if (!order) {
             await prisma.order.create({
@@ -79,21 +91,20 @@ export async function handleOrderbookWSMessage(data: WebSocketMessage) {
                     price,
                     size,
                     offset,
-                    side: 'bid',
+                    side: 'BID',
                     marketId: market.id,
                 },
             })
-            continue
-        }
-
-        if (offset > order.offset) {
-            if (size === 0) {
-                await prisma.order.delete({ where: { id: order.id } })
-            } else {
-                await prisma.order.update({
-                    where: { id: order.id },
-                    data: { size, offset },
-                })
+        } else {
+            if (offset > order.offset) {
+                if (size === 0) {
+                    await prisma.order.delete({ where: { id: order.id } })
+                } else {
+                    await prisma.order.update({
+                        where: { id: order.id },
+                        data: { size, offset },
+                    })
+                }
             }
         }
     }
@@ -103,7 +114,7 @@ export async function handleOrderbookWSMessage(data: WebSocketMessage) {
         const size = parseFloat(ask[1])
 
         const order = await prisma.order.findFirst({
-            where: { price, side: 'ask' },
+            where: { price, side: 'ASK', marketId: market.id },
         })
         if (!order) {
             await prisma.order.create({
@@ -111,21 +122,20 @@ export async function handleOrderbookWSMessage(data: WebSocketMessage) {
                     price,
                     size,
                     offset,
-                    side: 'ask',
+                    side: 'ASK',
                     marketId: market.id,
                 },
             })
-            continue
-        }
-
-        if (offset > order.offset) {
-            if (size === 0) {
-                await prisma.order.delete({ where: { id: order.id } })
-            } else {
-                await prisma.order.update({
-                    where: { id: order.id },
-                    data: { size, offset },
-                })
+        } else {
+            if (offset > order.offset) {
+                if (size === 0) {
+                    await prisma.order.delete({ where: { id: order.id } })
+                } else {
+                    await prisma.order.update({
+                        where: { id: order.id },
+                        data: { size, offset },
+                    })
+                }
             }
         }
     }

@@ -1,6 +1,11 @@
 import type { Arguments, CommandBuilder } from 'yargs'
+import { Worker } from 'bullmq'
 import type { BaseOptions } from './types'
-import { initWSClient } from '../utils/dydxClient'
+import { WebSocketMessage, initWSClient } from '../utils/dydxClient'
+import {
+    handleMarketsWSMessage,
+    handleOrderbookWSMessage,
+} from '../execution/calculations'
 
 interface Options extends BaseOptions {
     ticker1: string
@@ -63,4 +68,25 @@ export const handler = async (argv: Arguments<Options>) => {
     const { wsHost } = argv
 
     const ws = initWSClient(wsHost)
+
+    const worker = new Worker<
+        WebSocketMessage,
+        any,
+        WebSocketMessage['channel']
+    >(
+        'dydx-ws',
+        async (job) => {
+            switch (job.name) {
+                case 'v3_markets':
+                    await handleMarketsWSMessage(job.data)
+                    break
+                case 'v3_orderbook':
+                    await handleOrderbookWSMessage(job.data)
+                    break
+            }
+        },
+        { autorun: false }
+    )
+
+    await worker.run()
 }

@@ -16,6 +16,7 @@
         "@dydxprotocol/v3-client": "^1.15.0",
         "@prisma/client": "4.13.0",
         "axios": "^1.4.0",
+        "bullmq": "^3.13.4",
         "prisma": "^4.13.0",
         "rimraf": "^4.4.1",
         "ws": "^8.13.0",
