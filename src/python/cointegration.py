@@ -20,7 +20,7 @@ def calculate_spread(series1: List[float], series2: List[float], hedgeRatio: flo
 
 
 def calculate_cointegration(series1: List[float], series2: List[float]):
-    coint_flag = 0
+    coint_flag = False
     coint_res = coint(series1, series2)
     coint_t = coint_res[0]
     p_value = coint_res[1]
@@ -30,7 +30,7 @@ def calculate_cointegration(series1: List[float], series2: List[float]):
     spread = calculate_spread(series1, series2, hedge_ratio)
     zero_crossing = len(np.where(np.diff(np.sign(spread)))[0])
     if p_value < 0.5 and coint_t < critical_value:
-        coint_flag = 1
+        coint_flag = True
 
     return {
         "cointFlag": coint_flag,

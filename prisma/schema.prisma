@@ -8,10 +8,29 @@ datasource db {
 }
 
 model Market {
-  id         Int     @id @default(autoincrement())
-  name       String  @unique
-  indexPrice Float
-  orders     Order[]
+  id           Int           @id @default(autoincrement())
+  name         String        @unique
+  status       MarketStatus?
+  indexPrice   Float         @default(0)
+  orders       Order[]
+  candles      Candle[]
+  coint        Coint[]       @relation("MarketA")
+  cointReverse Coint[]       @relation("MarketB")
+}
+
+enum MarketStatus {
+  ONLINE
+  OFFLINE
+  POST_ONLY
+  CANCEL_ONLY
+}
+
+model Candle {
+  id        Int      @id @default(autoincrement())
+  close     Float
+  Market    Market   @relation(fields: [marketId], references: [id])
+  marketId  Int
+  createdAt DateTime @default(now())
 }
 
 model Order {
@@ -27,4 +46,22 @@ model Order {
 enum Side {
   BID
   ASK
+}
+
+model Coint {
+  id Int @id @default(autoincrement())
+
+  MarketA   Market @relation("MarketA", fields: [marketAId], references: [id])
+  marketAId Int
+
+  MarketB   Market @relation("MarketB", fields: [marketBId], references: [id])
+  marketBId Int
+
+  cointFlag     Boolean
+  pValue        Float
+  tValue        Float
+  criticalValue Float
+  hedgeRatio    Float
+  zeroCrossing  Float
+  marketId      Int?
 }

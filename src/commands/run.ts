@@ -1,13 +1,15 @@
 import type { Arguments, CommandBuilder } from 'yargs'
 import { Worker } from 'bullmq'
-import type { BaseOptions } from './types'
-import { WebSocketMessage, initWSClient } from '../utils/dydxClient'
+import { WebSocketMessage, initClient, initWSClient } from '../utils/dydxClient'
 import {
     handleMarketsWSMessage,
     handleOrderbookWSMessage,
 } from '../execution/calculations'
+import { getMarkets, getMarketsPrices } from '../strategy/market'
+import { getCointegratedPairs } from '../strategy/cointegration'
+import { CandleResolution } from '@dydxprotocol/v3-client'
 
-interface Options extends BaseOptions {
+interface Options {
     ticker1: string
     ticker2: string
     positiveTicker: number
@@ -15,6 +17,17 @@ interface Options extends BaseOptions {
     stopLoss: number
     triggerThresh: number
     limitOrder: boolean
+    httpHost: string
+    wsHost: string
+    candlesLimit: number
+    zscoreWindow: number
+    timeFrame: CandleResolution
+    verbose?: boolean
+    'http-host': string
+    'ws-host': string
+    'candles-limit': number
+    'zscore-window': number
+    'time-frame': CandleResolution
     'tradeable-capital': number
     'stop-loss': number
     'trigger-thresh': number
@@ -22,11 +35,49 @@ interface Options extends BaseOptions {
     'positive-ticker': number
 }
 
-export const command = 'execution'
-export const desc = 'Run the execution'
+export const command = 'run'
+export const desc = 'Run DyDx bot'
 
 export const builder: CommandBuilder<Options, Options> = (yargs) =>
     yargs
+        .option('http-host', {
+            type: 'string',
+            description: 'The dy/dx api url',
+            demandOption: true,
+            global: true,
+        })
+        .option('ws-host', {
+            type: 'string',
+            description: 'The dy/dx websocket url',
+            demandOption: true,
+            global: true,
+        })
+        .option('candles-limit', {
+            type: 'number',
+            description: 'The number of candles to fetch(max: 100)',
+            default: 100,
+            global: true,
+
+            coerce: (value) => {
+                if (value <= 100) return value
+                throw new Error(
+                    'The candles limit must be less than or equal to 100'
+                )
+            },
+        })
+        .option('zscore-window', {
+            type: 'number',
+            description: 'Zscore window',
+            default: 21,
+            global: true,
+        })
+        .option('time-frame', {
+            type: 'string',
+            description: 'Time frame',
+            choices: Object.values(CandleResolution),
+            default: CandleResolution.ONE_HOUR,
+            global: true,
+        })
         .option('ticker1', {
             type: 'string',
             description: 'Ticker 1',
@@ -65,7 +116,18 @@ export const builder: CommandBuilder<Options, Options> = (yargs) =>
         })
 
 export const handler = async (argv: Arguments<Options>) => {
-    const { wsHost } = argv
+    const { wsHost, httpHost, timeFrame, candlesLimit } = argv
+
+    initClient(httpHost)
+
+    console.log('[+]Fetching markets')
+    await getMarkets()
+
+    console.log('[+]Fetching markets prices')
+    await getMarketsPrices(timeFrame, candlesLimit)
+
+    console.log('[+]Finding cointegrated pairs')
+    await getCointegratedPairs()
 
     const ws = initWSClient(wsHost)
 

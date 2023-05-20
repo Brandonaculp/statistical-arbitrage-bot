@@ -35,7 +35,3 @@ node_modules
 prisma/*
 !prisma/schema.prisma
 !prisma/seed.ts
-
-
-###
-marketPrices.json
