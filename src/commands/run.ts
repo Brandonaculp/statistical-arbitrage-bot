@@ -1,18 +1,18 @@
 import type { Arguments, CommandBuilder } from 'yargs'
 import { Worker } from 'bullmq'
-import { WebSocketMessage, initClient, initWSClient } from '../utils/dydxClient'
+import { WebSocketMessage, initClients } from '../utils/dydxClient'
 import {
+    getTradeDetails,
     handleMarketsWSMessage,
     handleOrderbookWSMessage,
 } from '../execution/calculations'
 import { getMarkets, getMarketsPrices, getPairs } from '../strategy/market'
 import { getCointegratedPairs } from '../strategy/cointegration'
 import { CandleResolution } from '@dydxprotocol/v3-client'
+import { sleep } from '../utils/sleep'
+import { prisma } from '../utils/prismaClient'
 
 interface Options {
-    ticker1: string
-    ticker2: string
-    positiveTicker: number
     tradeableCapital: number
     stopLoss: number
     triggerThresh: number
@@ -32,7 +32,6 @@ interface Options {
     'stop-loss': number
     'trigger-thresh': number
     'limit-order': boolean
-    'positive-ticker': number
 }
 
 export const command = 'run'
@@ -78,22 +77,6 @@ export const builder: CommandBuilder<Options, Options> = (yargs) =>
             default: CandleResolution.ONE_HOUR,
             global: true,
         })
-        .option('ticker1', {
-            type: 'string',
-            description: 'Ticker 1',
-            demandOption: true,
-        })
-        .option('ticker2', {
-            type: 'string',
-            description: 'Ticker 2',
-            demandOption: true,
-        })
-        .option('positive-ticker', {
-            type: 'number',
-            description: 'Positive Ticker',
-            choices: [1, 2],
-            default: 1,
-        })
         .option('tradeable-capital', {
             type: 'number',
             description: 'Tradeable Capital',
@@ -116,44 +99,66 @@ export const builder: CommandBuilder<Options, Options> = (yargs) =>
         })
 
 export const handler = async (argv: Arguments<Options>) => {
-    const { wsHost, httpHost, timeFrame, candlesLimit } = argv
+    const {
+        wsHost,
+        httpHost,
+        timeFrame,
+        candlesLimit,
+        stopLoss,
+        tradeableCapital,
+    } = argv
 
-    initClient(httpHost)
+    // initClient(httpHost)
 
-    console.log('[+]Fetching markets')
-    await getMarkets()
+    // console.log('[+]Fetching markets')
+    // await getMarkets()
 
-    console.log('[+]Storing pairs')
-    await getPairs()
+    // console.log('[+]Storing pairs')
+    // await getPairs()
 
-    console.log('[+]Fetching markets prices')
-    await getMarketsPrices(timeFrame, candlesLimit)
+    // console.log('[+]Fetching markets prices')
+    // await getMarketsPrices(timeFrame, candlesLimit)
 
-    console.log('[+]Finding cointegrated pairs')
-    await getCointegratedPairs()
+    // console.log('[+]Finding cointegrated pairs')
+    // await getCointegratedPairs()
 
-    return
-
-    const ws = initWSClient(wsHost)
+    initClients(httpHost, wsHost)
 
     const worker = new Worker<
         WebSocketMessage,
         any,
         WebSocketMessage['channel']
-    >(
-        'dydx-ws',
-        async (job) => {
-            switch (job.name) {
-                case 'v3_markets':
-                    await handleMarketsWSMessage(job.data)
-                    break
-                case 'v3_orderbook':
-                    await handleOrderbookWSMessage(job.data)
-                    break
-            }
-        },
-        { autorun: false }
-    )
+    >('dydx-ws', async (job) => {
+        switch (job.name) {
+            case 'v3_markets':
+                await handleMarketsWSMessage(job.data)
+                break
+            case 'v3_orderbook':
+                await handleOrderbookWSMessage(job.data)
+                break
+        }
+    })
 
-    await worker.run()
+    const coint = await prisma.coint.findFirstOrThrow({
+        where: {
+            cointFlag: true,
+        },
+        orderBy: {
+            zeroCrossing: 'desc',
+        },
+        select: {
+            pair: true,
+        },
+    })
+
+    while (true) {
+        const marketAOrders = await prisma.order.findMany({
+            where: { marketId: coint.pair.marketAId },
+        })
+        const marketBOrders = await prisma.order.findMany({
+            where: { marketId: coint.pair.marketBId },
+        })
+
+        await sleep(2000)
+    }
 }

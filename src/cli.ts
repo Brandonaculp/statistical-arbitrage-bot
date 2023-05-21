@@ -2,6 +2,9 @@
 
 import yargs from 'yargs'
 import { hideBin } from 'yargs/helpers'
+import * as dotenv from 'dotenv'
+
+dotenv.config()
 
 yargs(hideBin(process.argv))
     .option('verbose', {
