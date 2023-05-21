@@ -8,54 +8,53 @@ datasource db {
 }
 
 model Market {
-  id           Int           @id @default(autoincrement())
-  name         String        @unique
-  status       MarketStatus?
-  indexPrice   Float         @default(0)
-  orders       Order[]
-  candles      Candle[]
-  coint        Coint[]       @relation("MarketA")
-  cointReverse Coint[]       @relation("MarketB")
+  id         Int      @id @default(autoincrement())
+  name       String   @unique
+  indexPrice Float    @default(0)
+  orders     Order[]
+  candles    Candle[]
+  pairsA     Pair[]   @relation("MarketA")
+  pairsB     Pair[]   @relation("MarketB")
 }
 
-enum MarketStatus {
-  ONLINE
-  OFFLINE
-  POST_ONLY
-  CANCEL_ONLY
+model Pair {
+  id Int @id @default(autoincrement())
+
+  marketA   Market @relation("MarketA", fields: [marketAId], references: [id], onDelete: Cascade)
+  marketAId Int
+
+  marketB   Market @relation("MarketB", fields: [marketBId], references: [id], onDelete: Cascade)
+  marketBId Int
+
+  Coint Coint?
 }
 
 model Candle {
-  id        Int      @id @default(autoincrement())
-  close     Float
-  Market    Market   @relation(fields: [marketId], references: [id])
-  marketId  Int
+  id    Int   @id @default(autoincrement())
+  close Float
+
+  market   Market @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  marketId Int
+
   createdAt DateTime @default(now())
 }
 
 model Order {
-  id       Int    @id @default(autoincrement())
-  price    Float
-  size     Float
-  offset   BigInt
-  side     Side
-  Market   Market @relation(fields: [marketId], references: [id], onDelete: Cascade)
-  marketId Int
-}
+  id     Int       @id @default(autoincrement())
+  price  Float
+  size   Float
+  offset BigInt
+  side   OrderSide
 
-enum Side {
-  BID
-  ASK
+  market   Market @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  marketId Int
 }
 
 model Coint {
   id Int @id @default(autoincrement())
 
-  MarketA   Market @relation("MarketA", fields: [marketAId], references: [id])
-  marketAId Int
-
-  MarketB   Market @relation("MarketB", fields: [marketBId], references: [id])
-  marketBId Int
+  pair   Pair @relation(fields: [pairId], references: [id], onDelete: Cascade)
+  pairId Int  @unique
 
   cointFlag     Boolean
   pValue        Float
@@ -63,5 +62,9 @@ model Coint {
   criticalValue Float
   hedgeRatio    Float
   zeroCrossing  Float
-  marketId      Int?
+}
+
+enum OrderSide {
+  BID
+  ASK
 }

@@ -5,7 +5,7 @@ import {
     handleMarketsWSMessage,
     handleOrderbookWSMessage,
 } from '../execution/calculations'
-import { getMarkets, getMarketsPrices } from '../strategy/market'
+import { getMarkets, getMarketsPrices, getPairs } from '../strategy/market'
 import { getCointegratedPairs } from '../strategy/cointegration'
 import { CandleResolution } from '@dydxprotocol/v3-client'
 
@@ -123,11 +123,16 @@ export const handler = async (argv: Arguments<Options>) => {
     console.log('[+]Fetching markets')
     await getMarkets()
 
+    console.log('[+]Storing pairs')
+    await getPairs()
+
     console.log('[+]Fetching markets prices')
     await getMarketsPrices(timeFrame, candlesLimit)
 
     console.log('[+]Finding cointegrated pairs')
     await getCointegratedPairs()
+
+    return
 
     const ws = initWSClient(wsHost)
 

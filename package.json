@@ -4,13 +4,10 @@
     "license": "unlicense",
     "scripts": {
         "build": "rimraf ./build && tsc",
-        "start": "yarn build && chmod +x ./build/src/cli.js && ./build/src/cli.js",
+        "start": "yarn build && chmod +x ./build/cli.js && ./build/cli.js",
         "start:api": "uvicorn src.python.api.main:app --reload",
         "prepare": "husky install",
         "format": "pretty-quick --staged"
-    },
-    "prisma": {
-        "seed": "ts-node --transpile-only prisma/seed.ts"
     },
     "dependencies": {
         "@dydxprotocol/v3-client": "^1.15.0",
