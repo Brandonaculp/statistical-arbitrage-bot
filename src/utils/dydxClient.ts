@@ -1,4 +1,10 @@
-import { DydxClient, Market } from '@dydxprotocol/v3-client'
+import {
+    DydxClient,
+    Market,
+    OnboardingActionString,
+    SignOnboardingAction,
+    SigningMethod,
+} from '@dydxprotocol/v3-client'
 import { Queue } from 'bullmq'
 import WebSocket from 'ws'
 import Web3 from 'web3'
@@ -15,82 +21,121 @@ export let client: DydxClient
 export let ws: WebSocket
 
 export async function initClients(httpHost: string, wsHost: string) {
-    const web3 = new Web3()
-    web3.eth.accounts.wallet.add(process.env.ETHEREUM_PRIVATE_KEY!)
-
-    // @ts-ignore
-    client = new DydxClient(httpHost, { web3: web3 })
-
-    const accountAddress = web3.eth.accounts.wallet[0].address
-    const apiCreds = await client.onboarding.recoverDefaultApiCredentials(
-        accountAddress
+    const web3 = new Web3(
+        new Web3.providers.HttpProvider(
+            'https://ethereum-goerli.publicnode.com'
+        )
     )
-    client.apiKeyCredentials = apiCreds
+    web3.eth.accounts.wallet.add(process.env.ETHEREUM_PRIVATE_KEY!)
+    const accountAddress = web3.eth.accounts.wallet[0].address
 
-    const queue = new Queue('dydx-ws', {
-        connection: {
-            host: 'localhost',
-            port: 6379,
+    client = new DydxClient(httpHost, {
+        // @ts-ignore
+        web3,
+        networkId: 5,
+        apiKeyCredentials: {
+            key: 'f9fe5a84-f03d-cd87-c1c7-41e9ad64732d',
+            secret: 'hAc8ZchZd9S5_RO2M5J4zMe1jkUY7FI7EUm0yjoV',
+            passphrase: 'xOoyJ3unzYByTlHoW8uH',
         },
     })
 
-    ws = new WebSocket(wsHost)
+    // const keyPair = await client.onboarding.deriveStarkKey(accountAddress)
 
-    const timestamp = new Date().toISOString()
-    const signature = client.private.sign({
-        requestPath: '/ws/accounts',
-        method: RequestMethod.GET,
-        isoTimestamp: timestamp,
-    })
+    // @ts-ignore
+    // const signer = new SignOnboardingAction(web3, 5)
 
-    const accountsMessage = {
-        type: 'subscribe',
-        channel: 'v3_accounts',
-        accountNumber: '0',
-        apiKey: apiCreds.key,
-        signature,
-        timestamp,
-        passphrase: apiCreds.passphrase,
-    }
+    // const signature = await signer.sign(accountAddress, SigningMethod.Hash, {
+    //     action: OnboardingActionString.ONBOARDING,
+    // })
 
-    const marketsMessage = {
-        type: 'subscribe',
-        channel: 'v3_markets',
-    }
+    // const { user, apiKey, account } = await client.onboarding.createUser(
+    //     {
+    //         starkKey: keyPair.publicKey,
+    //         starkKeyYCoordinate: keyPair.publicKeyYCoordinate,
+    //         country: 'DE',
+    //     },
+    //     accountAddress,
+    //     signature
+    // )
 
-    ws.on('open', () => {
-        ws.send(JSON.stringify(marketsMessage))
-        ws.send(JSON.stringify(accountsMessage))
+    // const apiKey = await client.onboarding.recoverDefaultApiCredentials(
+    //     accountAddress
+    // )
 
-        for (const market of Object.values(Market)) {
-            const orderbookMessage = {
-                type: 'subscribe',
-                channel: 'v3_orderbook',
-                id: market,
-                includeOffsets: true,
-            }
-            ws.send(JSON.stringify(orderbookMessage))
-        }
-    })
+    // client.apiKeyCredentials = apiKey
 
-    ws.on('message', async (rawData) => {
-        const data = JSON.parse(rawData.toString()) as WebSocketMessage
+    const apiKeys = await client.private.getApiKeys()
 
-        if (data.channel) {
-            queue.add(data.channel, data, {
-                removeOnComplete: true,
-                attempts: 2,
-                backoff: {
-                    type: 'exponential',
-                    delay: 1000,
-                },
-            })
-        }
-    })
+    console.log({ apiKeys })
 
-    ws.on('error', (error) => {
-        console.error(error)
-    })
+    // const queue = new Queue('dydx-ws', {
+    //     connection: {
+    //         host: 'localhost',
+    //         port: 6379,
+    //     },
+    // })
 
-    return ws
+    // ws = new WebSocket(wsHost)
+
+    // const timestamp = new Date().toISOString()
+    // const signature = client.private.sign({
+    //     requestPath: '/ws/accounts',
+    //     method: RequestMethod.GET,
+    //     isoTimestamp: timestamp,
+    // })
+
+    // const accountsMessage = {
+    //     type: 'subscribe',
+    //     channel: 'v3_accounts',
+    //     accountNumber: '0',
+    //     apiKey: apiKey.key,
+    //     signature,
+    //     timestamp,
+    //     passphrase: apiKey.passphrase,
+    // }
+
+    // const marketsMessage = {
+    //     type: 'subscribe',
+    //     channel: 'v3_markets',
+    // }
+
+    // ws.on('open', () => {
+    //     ws.send(JSON.stringify(marketsMessage))
+    //     ws.send(JSON.stringify(accountsMessage))
+    //     for (const market of Object.values(Market)) {
+    //         const orderbookMessage = {
+    //             type: 'subscribe',
+    //             channel: 'v3_orderbook',
+    //             id: market,
+    //             includeOffsets: true,
+    //         }
+    //         ws.send(JSON.stringify(orderbookMessage))
+    //     }
+    // })
+
+    // ws.on('message', async (rawData) => {
+    //     const data = JSON.parse(rawData.toString()) as WebSocketMessage
+
+    //     if (data.channel === 'v3_accounts') {
+    //         console.log(data)
+    //     }
+
+    //     if (data.channel) {
+    //         queue.add(data.channel, data, {
+    //             removeOnComplete: true,
+    //             attempts: 2,
+    //             backoff: {
+    //                 type: 'exponential',
+    //                 delay: 1000,
+    //             },
+    //         })
+    //     }
+    // })
+
+    // ws.on('error', (error) => {
+    //     console.error(error)
+    // })
+
+    return { client, ws }
 }

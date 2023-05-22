@@ -2,18 +2,24 @@
     "name": "statistical-arbitrage-bot",
     "version": "0.0.0",
     "license": "unlicense",
+    "main": "build/cli.js",
+    "bin": {
+        "dydx-bot": "build/cli.js"
+    },
     "scripts": {
         "build": "rimraf ./build && tsc",
-        "start": "yarn build && chmod +x ./build/cli.js && ./build/cli.js",
-        "start:api": "uvicorn src.python.api.main:app --reload",
+        "format": "pretty-quick --staged",
         "prepare": "husky install",
-        "format": "pretty-quick --staged"
+        "start": "yarn build && chmod +x ./build/cli.js && ./build/cli.js",
+        "start:api": "uvicorn src.python.api.main:app --reload"
     },
     "dependencies": {
         "@dydxprotocol/v3-client": "^1.15.0",
+        "@inquirer/prompts": "^1.2.3",
         "@prisma/client": "4.13.0",
         "axios": "^1.4.0",
         "bullmq": "^3.13.4",
+        "dockerode": "^3.3.5",
         "dotenv": "^16.0.3",
         "prisma": "^4.13.0",
         "rimraf": "^4.4.1",
@@ -22,6 +28,7 @@
         "yargs": "^17.7.2"
     },
     "devDependencies": {
+        "@types/dockerode": "^3.3.17",
         "@types/node": "^18.15.11",
         "@types/ws": "^8.5.4",
         "@types/yargs": "^17.0.24",
