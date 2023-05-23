@@ -1,4 +1,5 @@
 import Dockerode, { Container, ContainerCreateOptions } from 'dockerode'
+import { resolve } from 'path'
 
 export interface DockerError extends Error {
     statusCode: number
@@ -12,8 +13,49 @@ export class Docker {
         this.docker = new Dockerode()
     }
 
+    public async startAPIServer() {
+        const hostPythonPath = resolve(__dirname, '../../python')
+
+        const containerName = 'dydx-api-server'
+
+        await this.removeContainer(containerName)
+
+        const container = await this.findOrCreateContainer(containerName, {
+            Image: 'python:3.10',
+            name: containerName,
+            Cmd: [
+                '/bin/bash',
+                '-c',
+                `
+                cd /app &&
+                python3 -m venv venv &&
+                source venv/bin/activate &&
+                pip3 install -r requirements.txt &&
+                uvicorn main:app --host 0.0.0.0 --port 8000
+                `,
+            ],
+            HostConfig: {
+                Binds: [`${hostPythonPath}:/app`],
+                RestartPolicy: { Name: 'always' },
+                PortBindings: {
+                    '8000/tcp': [{ HostPort: '8000' }],
+                },
+            },
+        })
+
+        const state = await container.inspect()
+
+        if (!state.State.Running) {
+            await container.start()
+        }
+
+        this.containers.push(container)
+    }
+
     public async startPostgres() {
         const containerName = 'dydx-postgres'
+
+        await this.removeContainer(containerName)
 
         const container = await this.findOrCreateContainer(containerName, {
             Image: 'postgres:latest',
@@ -42,6 +84,8 @@ export class Docker {
 
     public async startRedis() {
         const containerName = 'dydx-redis'
+
+        await this.removeContainer(containerName)
 
         const container = await this.findOrCreateContainer(containerName, {
             Image: 'redis:latest',
@@ -101,6 +145,12 @@ export class Docker {
             container: this.docker.getContainer(containers[0].Id),
             image: containers[0].Image,
         }
+    }
+
+    private async removeContainer(name: string) {
+        const { container } = await this.findContainer(name)
+        if (!container) return
+        await container.remove()
     }
 
     public async stopAll(removeContainers = false) {

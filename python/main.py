@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from typing import List, Any
 from pydantic import BaseModel
-from ..cointegration import calculate_cointegration
+from cointegration import calculate_cointegration
 import orjson
 
 

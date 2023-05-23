@@ -111,8 +111,9 @@ export const handler = async (argv: Arguments<Options>) => {
 
     const docker = new Docker()
 
-    await docker.startPostgres()
-    await docker.startRedis()
+    // await docker.startPostgres()
+    // await docker.startRedis()
+    // await docker.startAPIServer()
 
     // initClient(httpHost)
 
@@ -168,5 +169,5 @@ export const handler = async (argv: Arguments<Options>) => {
     //     await sleep(2000)
     // }
 
-    await docker.stopAll(true)
+    // await docker.stopAll(true)
 }

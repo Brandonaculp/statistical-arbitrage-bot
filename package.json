@@ -3,6 +3,11 @@
     "version": "0.0.0",
     "license": "unlicense",
     "main": "build/cli.js",
+    "files": [
+        "build",
+        "prisma/schema.prisma",
+        "python"
+    ],
     "bin": {
         "dydx-bot": "build/cli.js"
     },
@@ -11,7 +16,7 @@
         "format": "pretty-quick --staged",
         "prepare": "husky install",
         "start": "yarn build && chmod +x ./build/cli.js && ./build/cli.js",
-        "start:api": "uvicorn src.python.api.main:app --reload"
+        "start:api": "uvicorn python.api.main:app --reload"
     },
     "dependencies": {
         "@dydxprotocol/v3-client": "^1.15.0",
