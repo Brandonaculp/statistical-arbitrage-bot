@@ -67,8 +67,6 @@ export async function initClients(httpHost: string, wsHost: string) {
 
     const apiKeys = await client.private.getApiKeys()
 
-    console.log({ apiKeys })
-
     // const queue = new Queue('dydx-ws', {
     //     connection: {
     //         host: 'localhost',

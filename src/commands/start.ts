@@ -1,6 +1,8 @@
 import type { Arguments, CommandBuilder } from 'yargs'
 import { Worker } from 'bullmq'
 import { CandleResolution } from '@dydxprotocol/v3-client'
+import { exec } from 'child_process'
+import { promisify } from 'util'
 import { WebSocketMessage, initClients } from '../utils/dydxClient'
 import {
     getTradeDetails,
@@ -111,25 +113,27 @@ export const handler = async (argv: Arguments<Options>) => {
 
     const docker = new Docker()
 
-    // await docker.startPostgres()
-    // await docker.startRedis()
-    // await docker.startAPIServer()
+    await docker.startPostgres()
+    await docker.startRedis()
+    await docker.startAPIServer()
 
-    // initClient(httpHost)
+    const execAsync = promisify(exec)
 
-    // console.log('[+]Fetching markets')
-    // await getMarkets()
+    await execAsync('npx prisma migrate dev --name init')
 
-    // console.log('[+]Storing pairs')
-    // await getPairs()
+    initClients(httpHost, wsHost)
 
-    // console.log('[+]Fetching markets prices')
-    // await getMarketsPrices(timeFrame, candlesLimit)
+    console.log('[+]Fetching markets')
+    await getMarkets()
 
-    // console.log('[+]Finding cointegrated pairs')
-    // await getCointegratedPairs()
+    console.log('[+]Storing pairs')
+    await getPairs()
 
-    // const { client } = await initClients(httpHost, wsHost)
+    console.log('[+]Fetching markets prices')
+    await getMarketsPrices(timeFrame, candlesLimit)
+
+    console.log('[+]Finding cointegrated pairs')
+    await getCointegratedPairs()
 
     // const worker = new Worker<
     //     WebSocketMessage,
@@ -169,5 +173,5 @@ export const handler = async (argv: Arguments<Options>) => {
     //     await sleep(2000)
     // }
 
-    // await docker.stopAll(true)
+    await docker.stopAll(true)
 }

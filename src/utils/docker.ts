@@ -21,7 +21,7 @@ export class Docker {
         await this.removeContainer(containerName)
 
         const container = await this.findOrCreateContainer(containerName, {
-            Image: 'python:3.10',
+            Image: 'python:latest',
             name: containerName,
             Cmd: [
                 '/bin/bash',
@@ -40,6 +40,9 @@ export class Docker {
                 PortBindings: {
                     '8000/tcp': [{ HostPort: '8000' }],
                 },
+            },
+            ExposedPorts: {
+                '8000/tcp': {},
             },
         })
 
@@ -150,7 +153,7 @@ export class Docker {
     private async removeContainer(name: string) {
         const { container } = await this.findContainer(name)
         if (!container) return
-        await container.remove()
+        await container.remove({ force: true })
     }
 
     public async stopAll(removeContainers = false) {
