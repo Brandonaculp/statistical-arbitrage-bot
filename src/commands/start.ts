@@ -124,7 +124,7 @@ export const handler = async (argv: Arguments<Options>) => {
     await docker.startAPIServer({ fresh })
 
     const execAsync = promisify(exec)
-    await execAsync('npx prisma migrate dev --name init')
+    await execAsync('npx prisma db push')
 
     await initClients(httpHost, wsHost)
 

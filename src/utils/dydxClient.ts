@@ -117,7 +117,6 @@ export async function initClients(httpHost: string, wsHost: string) {
         web3,
         networkId: networkId[network],
     })
-    ws = new WebSocket(wsHost)
 
     const users = await prisma.user.findMany({
         where: {
@@ -137,6 +136,8 @@ export async function initClients(httpHost: string, wsHost: string) {
 
     let apiKey: ApiKeyCredentials =
         typeof user === 'string' ? await createUser(network) : user.apiKeys[0]
+
+    client.apiKeyCredentials = apiKey
 
     const queue = new Queue('dydx-ws', {
         connection: {
@@ -167,6 +168,7 @@ export async function initClients(httpHost: string, wsHost: string) {
         channel: 'v3_markets',
     }
 
+    ws = new WebSocket(wsHost)
     ws.on('open', () => {
         ws.send(JSON.stringify(marketsMessage))
         ws.send(JSON.stringify(accountsMessage))
