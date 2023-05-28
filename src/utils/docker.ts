@@ -1,6 +1,10 @@
 import Dockerode, { Container, ContainerCreateOptions } from 'dockerode'
 import { resolve } from 'path'
 
+export interface RunOptions {
+    fresh: boolean
+}
+
 export interface DockerError extends Error {
     statusCode: number
 }
@@ -13,12 +17,11 @@ export class Docker {
         this.docker = new Dockerode()
     }
 
-    public async startAPIServer() {
+    public async startAPIServer(options: RunOptions) {
         const hostPythonPath = resolve(__dirname, '../../python')
-
         const containerName = 'dydx-api-server'
 
-        await this.removeContainer(containerName)
+        if (options.fresh) await this.removeContainer(containerName)
 
         const container = await this.findOrCreateContainer(containerName, {
             Image: 'python:latest',
@@ -55,10 +58,10 @@ export class Docker {
         this.containers.push(container)
     }
 
-    public async startPostgres() {
+    public async startPostgres(options: RunOptions) {
         const containerName = 'dydx-postgres'
 
-        await this.removeContainer(containerName)
+        if (options.fresh) await this.removeContainer(containerName)
 
         const container = await this.findOrCreateContainer(containerName, {
             Image: 'postgres:latest',
@@ -85,10 +88,10 @@ export class Docker {
         this.containers.push(container)
     }
 
-    public async startRedis() {
+    public async startRedis(options: RunOptions) {
         const containerName = 'dydx-redis'
 
-        await this.removeContainer(containerName)
+        if (options.fresh) await this.removeContainer(containerName)
 
         const container = await this.findOrCreateContainer(containerName, {
             Image: 'redis:latest',

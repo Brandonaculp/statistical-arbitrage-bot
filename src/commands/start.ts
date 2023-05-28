@@ -5,7 +5,6 @@ import { exec } from 'child_process'
 import { promisify } from 'util'
 import { WebSocketMessage, initClients } from '../utils/dydxClient'
 import {
-    getTradeDetails,
     handleMarketsWSMessage,
     handleOrderbookWSMessage,
 } from '../execution/calculations'
@@ -26,6 +25,7 @@ interface Options {
     zscoreWindow: number
     timeFrame: CandleResolution
     verbose?: boolean
+    fresh: boolean
     'http-host': string
     'ws-host': string
     'candles-limit': number
@@ -53,6 +53,11 @@ export const builder: CommandBuilder<Options, Options> = (yargs) =>
             description: 'The dy/dx websocket url',
             demandOption: true,
             global: true,
+        })
+        .options('fresh', {
+            type: 'boolean',
+            description: 'Fresh start',
+            default: false,
         })
         .option('candles-limit', {
             type: 'number',
@@ -109,19 +114,19 @@ export const handler = async (argv: Arguments<Options>) => {
         candlesLimit,
         stopLoss,
         tradeableCapital,
+        fresh,
     } = argv
 
     const docker = new Docker()
 
-    await docker.startPostgres()
-    await docker.startRedis()
-    await docker.startAPIServer()
+    await docker.startPostgres({ fresh })
+    await docker.startRedis({ fresh })
+    await docker.startAPIServer({ fresh })
 
     const execAsync = promisify(exec)
-
     await execAsync('npx prisma migrate dev --name init')
 
-    initClients(httpHost, wsHost)
+    await initClients(httpHost, wsHost)
 
     console.log('[+]Fetching markets')
     await getMarkets()
@@ -135,43 +140,43 @@ export const handler = async (argv: Arguments<Options>) => {
     console.log('[+]Finding cointegrated pairs')
     await getCointegratedPairs()
 
-    // const worker = new Worker<
-    //     WebSocketMessage,
-    //     any,
-    //     WebSocketMessage['channel']
-    // >('dydx-ws', async (job) => {
-    //     switch (job.name) {
-    //         case 'v3_markets':
-    //             await handleMarketsWSMessage(job.data)
-    //             break
-    //         case 'v3_orderbook':
-    //             await handleOrderbookWSMessage(job.data)
-    //             break
-    //     }
-    // })
+    const worker = new Worker<
+        WebSocketMessage,
+        any,
+        WebSocketMessage['channel']
+    >('dydx-ws', async (job) => {
+        switch (job.name) {
+            case 'v3_markets':
+                await handleMarketsWSMessage(job.data)
+                break
+            case 'v3_orderbook':
+                await handleOrderbookWSMessage(job.data)
+                break
+        }
+    })
 
-    // const coint = await prisma.coint.findFirstOrThrow({
-    //     where: {
-    //         cointFlag: true,
-    //     },
-    //     orderBy: {
-    //         zeroCrossing: 'desc',
-    //     },
-    //     select: {
-    //         pair: true,
-    //     },
-    // })
+    const coint = await prisma.coint.findFirstOrThrow({
+        where: {
+            cointFlag: true,
+        },
+        orderBy: {
+            zeroCrossing: 'desc',
+        },
+        select: {
+            pair: true,
+        },
+    })
 
-    // while (true) {
-    //     const marketAOrders = await prisma.order.findMany({
-    //         where: { marketId: coint.pair.marketAId },
-    //     })
-    //     const marketBOrders = await prisma.order.findMany({
-    //         where: { marketId: coint.pair.marketBId },
-    //     })
+    while (true) {
+        const marketAOrders = await prisma.order.findMany({
+            where: { marketId: coint.pair.marketAId },
+        })
+        const marketBOrders = await prisma.order.findMany({
+            where: { marketId: coint.pair.marketBId },
+        })
 
-    //     await sleep(2000)
-    // }
+        await sleep(2000)
+    }
 
-    await docker.stopAll(true)
+    await docker.stopAll()
 }

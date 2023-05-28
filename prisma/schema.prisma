@@ -7,6 +7,29 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id         Int      @id @default(autoincrement())
+  username   String
+  address    String
+  privateKey String
+  network    Network
+  apiKeys    ApiKey[]
+}
+
+enum Network {
+  MAINNET
+  TESTNET
+}
+
+model ApiKey {
+  id         Int    @id @default(autoincrement())
+  key        String
+  secret     String
+  passphrase String
+  user       User?  @relation(fields: [userId], references: [id])
+  userId     Int?
+}
+
 model Market {
   id         Int      @id @default(autoincrement())
   name       String   @unique

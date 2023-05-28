@@ -1,4 +1,5 @@
 import {
+    ApiKeyCredentials,
     DydxClient,
     Market,
     OnboardingActionString,
@@ -9,6 +10,9 @@ import { Queue } from 'bullmq'
 import WebSocket from 'ws'
 import Web3 from 'web3'
 import { RequestMethod } from '@dydxprotocol/v3-client/build/src/lib/axios'
+import { Separator, input, password, select } from '@inquirer/prompts'
+import { prisma } from './prismaClient'
+import { Network } from '@prisma/client'
 
 export interface WebSocketMessage {
     type: 'subscribed' | 'channel_data'
@@ -20,120 +24,185 @@ export interface WebSocketMessage {
 export let client: DydxClient
 export let ws: WebSocket
 
-export async function initClients(httpHost: string, wsHost: string) {
-    const web3 = new Web3(
-        new Web3.providers.HttpProvider(
-            'https://ethereum-goerli.publicnode.com'
-        )
+const networkId = {
+    [Network.MAINNET]: 1,
+    [Network.TESTNET]: 5,
+}
+
+async function createUser(network: Network) {
+    if (!client || !client.web3) {
+        throw new Error('client not initialized')
+    }
+
+    const username = await input({ message: 'Enter username' })
+    const privateKey = await password({ message: 'Enter your private key' })
+
+    const userExists = await prisma.user.findFirst({
+        where: { privateKey, network },
+    })
+    if (userExists) {
+        throw new Error(`user already exists: ${userExists.username}`)
+    }
+
+    client.web3.eth.accounts.wallet.add(privateKey)
+    const address = client.web3.eth.accounts.wallet[0].address
+
+    const keyPair = await client.onboarding.deriveStarkKey(address)
+
+    const signer = new SignOnboardingAction(client.web3, networkId[network])
+    const signature = await signer.sign(address, SigningMethod.Hash, {
+        action: OnboardingActionString.ONBOARDING,
+    })
+
+    await client.onboarding.createUser(
+        {
+            starkKey: keyPair.publicKey,
+            starkKeyYCoordinate: keyPair.publicKeyYCoordinate,
+            country: 'DE',
+        },
+        address,
+        signature
     )
-    web3.eth.accounts.wallet.add(process.env.ETHEREUM_PRIVATE_KEY!)
-    const accountAddress = web3.eth.accounts.wallet[0].address
+
+    const { apiKey } = await client.ethPrivate.createApiKey(address)
+
+    const user = await prisma.user.create({
+        data: {
+            username,
+            address,
+            privateKey,
+            network,
+        },
+    })
+
+    await prisma.apiKey.create({
+        data: {
+            key: apiKey.key,
+            secret: apiKey.secret,
+            passphrase: apiKey.passphrase,
+            userId: user.id,
+        },
+    })
+
+    return apiKey
+}
+
+export async function initClients(httpHost: string, wsHost: string) {
+    const network = await select<Network>({
+        message: 'Select network',
+        choices: [
+            {
+                name: 'Mainnet',
+                value: Network.MAINNET,
+            },
+            {
+                name: 'Testnet',
+                value: Network.TESTNET,
+            },
+        ],
+    })
+
+    const httpProvider = await input({
+        message: 'Enter ethereum http provider',
+        default:
+            network === Network.MAINNET
+                ? 'https://ethereum.publicnode.com'
+                : 'https://ethereum-goerli.publicnode.com',
+    })
+
+    const web3 = new Web3(new Web3.providers.HttpProvider(httpProvider))
 
     client = new DydxClient(httpHost, {
         // @ts-ignore
         web3,
-        networkId: 5,
-        apiKeyCredentials: {
-            key: 'f9fe5a84-f03d-cd87-c1c7-41e9ad64732d',
-            secret: 'hAc8ZchZd9S5_RO2M5J4zMe1jkUY7FI7EUm0yjoV',
-            passphrase: 'xOoyJ3unzYByTlHoW8uH',
+        networkId: networkId[network],
+    })
+    ws = new WebSocket(wsHost)
+
+    const users = await prisma.user.findMany({
+        where: {
+            network,
+        },
+        include: { apiKeys: true },
+    })
+
+    const user = await select<(typeof users)[0] | string>({
+        message: 'Select user',
+        choices: [
+            ...users.map((user) => ({ name: user.username, value: user })),
+            new Separator(),
+            { name: 'Create new user', value: 'create new user' },
+        ],
+    })
+
+    let apiKey: ApiKeyCredentials =
+        typeof user === 'string' ? await createUser(network) : user.apiKeys[0]
+
+    const queue = new Queue('dydx-ws', {
+        connection: {
+            host: 'localhost',
+            port: 6379,
         },
     })
 
-    // const keyPair = await client.onboarding.deriveStarkKey(accountAddress)
+    const timestamp = new Date().toISOString()
+    const signature = client.private.sign({
+        requestPath: '/ws/accounts',
+        method: RequestMethod.GET,
+        isoTimestamp: timestamp,
+    })
 
-    // @ts-ignore
-    // const signer = new SignOnboardingAction(web3, 5)
+    const accountsMessage = {
+        type: 'subscribe',
+        channel: 'v3_accounts',
+        accountNumber: '0',
+        apiKey: apiKey.key,
+        signature,
+        timestamp,
+        passphrase: apiKey.passphrase,
+    }
 
-    // const signature = await signer.sign(accountAddress, SigningMethod.Hash, {
-    //     action: OnboardingActionString.ONBOARDING,
-    // })
+    const marketsMessage = {
+        type: 'subscribe',
+        channel: 'v3_markets',
+    }
 
-    // const { user, apiKey, account } = await client.onboarding.createUser(
-    //     {
-    //         starkKey: keyPair.publicKey,
-    //         starkKeyYCoordinate: keyPair.publicKeyYCoordinate,
-    //         country: 'DE',
-    //     },
-    //     accountAddress,
-    //     signature
-    // )
+    ws.on('open', () => {
+        ws.send(JSON.stringify(marketsMessage))
+        ws.send(JSON.stringify(accountsMessage))
+        for (const market of Object.values(Market)) {
+            const orderbookMessage = {
+                type: 'subscribe',
+                channel: 'v3_orderbook',
+                id: market,
+                includeOffsets: true,
+            }
+            ws.send(JSON.stringify(orderbookMessage))
+        }
+    })
 
-    // const apiKey = await client.onboarding.recoverDefaultApiCredentials(
-    //     accountAddress
-    // )
+    ws.on('message', async (rawData) => {
+        const data = JSON.parse(rawData.toString()) as WebSocketMessage
 
-    // client.apiKeyCredentials = apiKey
+        if (data.channel === 'v3_accounts') {
+            console.log(data)
+        }
 
-    const apiKeys = await client.private.getApiKeys()
+        if (data.channel) {
+            queue.add(data.channel, data, {
+                removeOnComplete: true,
+                attempts: 2,
+                backoff: {
+                    type: 'exponential',
+                    delay: 1000,
+                },
+            })
+        }
+    })
 
-    // const queue = new Queue('dydx-ws', {
-    //     connection: {
-    //         host: 'localhost',
-    //         port: 6379,
-    //     },
-    // })
-
-    // ws = new WebSocket(wsHost)
-
-    // const timestamp = new Date().toISOString()
-    // const signature = client.private.sign({
-    //     requestPath: '/ws/accounts',
-    //     method: RequestMethod.GET,
-    //     isoTimestamp: timestamp,
-    // })
-
-    // const accountsMessage = {
-    //     type: 'subscribe',
-    //     channel: 'v3_accounts',
-    //     accountNumber: '0',
-    //     apiKey: apiKey.key,
-    //     signature,
-    //     timestamp,
-    //     passphrase: apiKey.passphrase,
-    // }
-
-    // const marketsMessage = {
-    //     type: 'subscribe',
-    //     channel: 'v3_markets',
-    // }
-
-    // ws.on('open', () => {
-    //     ws.send(JSON.stringify(marketsMessage))
-    //     ws.send(JSON.stringify(accountsMessage))
-    //     for (const market of Object.values(Market)) {
-    //         const orderbookMessage = {
-    //             type: 'subscribe',
-    //             channel: 'v3_orderbook',
-    //             id: market,
-    //             includeOffsets: true,
-    //         }
-    //         ws.send(JSON.stringify(orderbookMessage))
-    //     }
-    // })
-
-    // ws.on('message', async (rawData) => {
-    //     const data = JSON.parse(rawData.toString()) as WebSocketMessage
-
-    //     if (data.channel === 'v3_accounts') {
-    //         console.log(data)
-    //     }
-
-    //     if (data.channel) {
-    //         queue.add(data.channel, data, {
-    //             removeOnComplete: true,
-    //             attempts: 2,
-    //             backoff: {
-    //                 type: 'exponential',
-    //                 delay: 1000,
-    //             },
-    //         })
-    //     }
-    // })
-
-    // ws.on('error', (error) => {
-    //     console.error(error)
-    // })
+    ws.on('error', (error) => {
+        console.error(error)
+    })
 
     return { client, ws }
 }
