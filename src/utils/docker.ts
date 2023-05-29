@@ -1,5 +1,6 @@
 import Dockerode, { Container, ContainerCreateOptions } from 'dockerode'
-import { resolve } from 'path'
+import { dirname, resolve } from 'path'
+import { fileURLToPath } from 'url'
 
 export interface RunOptions {
     fresh: boolean
@@ -18,6 +19,9 @@ export class Docker {
     }
 
     public async startAPIServer(options: RunOptions) {
+        const __filename = fileURLToPath(import.meta.url)
+        const __dirname = dirname(__filename)
+
         const hostPythonPath = resolve(__dirname, '../../python')
         const containerName = 'dydx-api-server'
 

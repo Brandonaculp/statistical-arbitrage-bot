@@ -1,33 +1,33 @@
-import type { Arguments, CommandBuilder } from 'yargs'
-import { Worker } from 'bullmq'
 import { CandleResolution } from '@dydxprotocol/v3-client'
+import { input, select } from '@inquirer/prompts'
+import { Network } from '@prisma/client'
+import { Worker } from 'bullmq'
 import { exec } from 'child_process'
+import ora from 'ora'
 import { promisify } from 'util'
-import { WebSocketMessage, initClients } from '../utils/dydxClient'
+import type { Arguments, CommandBuilder } from 'yargs'
+
 import {
     handleMarketsWSMessage,
     handleOrderbookWSMessage,
 } from '../execution/calculations'
-import { getMarkets, getMarketsPrices, getPairs } from '../strategy/market'
 import { getCointegratedPairs } from '../strategy/cointegration'
-import { sleep } from '../utils/sleep'
-import { prisma } from '../utils/prismaClient'
+import { getMarkets, getMarketsPrices, getPairs } from '../strategy/market'
 import { Docker } from '../utils/docker'
+import { WebSocketMessage, initClients } from '../utils/dydxClient'
+import { prisma } from '../utils/prismaClient'
+import { sleep } from '../utils/sleep'
 
 interface Options {
     tradeableCapital: number
     stopLoss: number
     triggerThresh: number
     limitOrder: boolean
-    httpHost: string
-    wsHost: string
     candlesLimit: number
     zscoreWindow: number
     timeFrame: CandleResolution
     verbose?: boolean
     fresh: boolean
-    'http-host': string
-    'ws-host': string
     'candles-limit': number
     'zscore-window': number
     'time-frame': CandleResolution
@@ -42,18 +42,7 @@ export const desc = 'Start the bot'
 
 export const builder: CommandBuilder<Options, Options> = (yargs) =>
     yargs
-        .option('http-host', {
-            type: 'string',
-            description: 'The dy/dx api url',
-            demandOption: true,
-            global: true,
-        })
-        .option('ws-host', {
-            type: 'string',
-            description: 'The dy/dx websocket url',
-            demandOption: true,
-            global: true,
-        })
+
         .options('fresh', {
             type: 'boolean',
             description: 'Fresh start',
@@ -63,7 +52,6 @@ export const builder: CommandBuilder<Options, Options> = (yargs) =>
             type: 'number',
             description: 'The number of candles to fetch(max: 100)',
             default: 100,
-            global: true,
 
             coerce: (value) => {
                 if (value <= 100) return value
@@ -76,14 +64,12 @@ export const builder: CommandBuilder<Options, Options> = (yargs) =>
             type: 'number',
             description: 'Zscore window',
             default: 21,
-            global: true,
         })
         .option('time-frame', {
             type: 'string',
             description: 'Time frame',
             choices: Object.values(CandleResolution),
             default: CandleResolution.ONE_HOUR,
-            global: true,
         })
         .option('tradeable-capital', {
             type: 'number',
@@ -107,15 +93,47 @@ export const builder: CommandBuilder<Options, Options> = (yargs) =>
         })
 
 export const handler = async (argv: Arguments<Options>) => {
-    const {
-        wsHost,
-        httpHost,
-        timeFrame,
-        candlesLimit,
-        stopLoss,
-        tradeableCapital,
-        fresh,
-    } = argv
+    const { timeFrame, candlesLimit, stopLoss, tradeableCapital, fresh } = argv
+
+    const network = await select<Network>({
+        message: 'Select network',
+        choices: [
+            {
+                name: 'Mainnet',
+                value: Network.MAINNET,
+            },
+            {
+                name: 'Testnet',
+                value: Network.TESTNET,
+            },
+        ],
+    })
+
+    const httpHost = await input({
+        message: 'Dydx HTTP API',
+        default:
+            network === Network.MAINNET
+                ? 'https://api.dydx.exchange'
+                : 'https://api.stage.dydx.exchange',
+    })
+
+    const wsHost = await input({
+        message: 'Dydx Websocket API',
+        default:
+            network === Network.MAINNET
+                ? 'wss://api.dydx.exchange/v3/ws'
+                : 'wss://api.stage.dydx.exchange/v3/ws',
+    })
+
+    const httpProvider = await input({
+        message: 'Ethereum HTTP provider',
+        default:
+            network === Network.MAINNET
+                ? 'https://ethereum.publicnode.com'
+                : 'https://ethereum-goerli.publicnode.com',
+    })
+
+    const spinner = ora('Starting bot').start()
 
     const docker = new Docker()
 
@@ -126,7 +144,7 @@ export const handler = async (argv: Arguments<Options>) => {
     const execAsync = promisify(exec)
     await execAsync('npx prisma db push')
 
-    await initClients(httpHost, wsHost)
+    await initClients(network, httpHost, wsHost, httpProvider)
 
     console.log('[+]Fetching markets')
     await getMarkets()

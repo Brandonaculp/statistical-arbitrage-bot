@@ -1,6 +1,6 @@
-import { CointResult } from './types'
 import { axiosInstance } from '../utils/customAxios'
 import { prisma } from '../utils/prismaClient'
+import { CointResult } from './types'
 
 async function calculateCoint(series1: number[], series2: number[]) {
     const coint = await axiosInstance.post<CointResult>(

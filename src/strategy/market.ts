@@ -1,4 +1,5 @@
 import { CandleResolution, Market } from '@dydxprotocol/v3-client'
+
 import { client } from '../utils/dydxClient'
 import { prisma } from '../utils/prismaClient'
 

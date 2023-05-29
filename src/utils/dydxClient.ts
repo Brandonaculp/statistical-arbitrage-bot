@@ -6,13 +6,14 @@ import {
     SignOnboardingAction,
     SigningMethod,
 } from '@dydxprotocol/v3-client'
-import { Queue } from 'bullmq'
-import WebSocket from 'ws'
-import Web3 from 'web3'
 import { RequestMethod } from '@dydxprotocol/v3-client/build/src/lib/axios'
 import { Separator, input, password, select } from '@inquirer/prompts'
-import { prisma } from './prismaClient'
 import { Network } from '@prisma/client'
+import { Queue } from 'bullmq'
+import Web3 from 'web3'
+import WebSocket from 'ws'
+
+import { prisma } from './prismaClient'
 
 export interface WebSocketMessage {
     type: 'subscribed' | 'channel_data'
@@ -87,29 +88,12 @@ async function createUser(network: Network) {
     return apiKey
 }
 
-export async function initClients(httpHost: string, wsHost: string) {
-    const network = await select<Network>({
-        message: 'Select network',
-        choices: [
-            {
-                name: 'Mainnet',
-                value: Network.MAINNET,
-            },
-            {
-                name: 'Testnet',
-                value: Network.TESTNET,
-            },
-        ],
-    })
-
-    const httpProvider = await input({
-        message: 'Enter ethereum http provider',
-        default:
-            network === Network.MAINNET
-                ? 'https://ethereum.publicnode.com'
-                : 'https://ethereum-goerli.publicnode.com',
-    })
-
+export async function initClients(
+    network: Network,
+    httpHost: string,
+    wsHost: string,
+    httpProvider: string
+) {
     const web3 = new Web3(new Web3.providers.HttpProvider(httpProvider))
 
     client = new DydxClient(httpHost, {

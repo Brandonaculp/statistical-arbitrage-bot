@@ -1,11 +1,12 @@
+import { Order } from '@prisma/client'
+
+import { WebSocketMessage } from '../utils/dydxClient'
+import { prisma } from '../utils/prismaClient'
 import {
     MarketsResponseObject,
     OrderbookChannelDataResponseObject,
     OrderbookSubscribeResponseObject,
 } from './types'
-import { prisma } from '../utils/prismaClient'
-import { WebSocketMessage } from '../utils/dydxClient'
-import { Order } from '@prisma/client'
 
 export async function handleMarketsWSMessage(data: WebSocketMessage) {
     const markets = (
