@@ -14,7 +14,7 @@ import {
     handleMarketsWSMessage,
     handleOrderbookWSMessage,
     handlePositionsWSMessage,
-} from './execution/calculations'
+} from './execution/wsMessageHandlers'
 import { getCointegratedPairs } from './strategy/cointegration'
 import { getMarkets, getMarketsPrices, getPairs } from './strategy/market'
 import { Docker } from './utils/docker'
