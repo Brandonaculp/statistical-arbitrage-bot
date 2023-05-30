@@ -1,8 +1,9 @@
 import {
     AccountResponseObject,
     PositionResponseObject,
+    PositionStatus,
 } from '@dydxprotocol/v3-client'
-import { Order, PositionSide, PositionStatus } from '@prisma/client'
+import { Order, PositionSide } from '@prisma/client'
 
 import { WebSocketMessage } from '../utils/dydxClient'
 import { prisma } from '../utils/prismaClient'
@@ -168,7 +169,6 @@ export async function handlePositionsWSMessage(
             await prisma.position.create({
                 data: {
                     size: parseFloat(position.size),
-                    status: position.status as PositionStatus,
                     side: position.side as PositionSide,
                     userId,
                     marketId: market.id,
@@ -192,22 +192,30 @@ export async function handlePositionsWSMessage(
             },
         })
 
-        await prisma.position.upsert({
-            where: {
-                marketId: market.id,
-            },
-            create: {
-                size: parseFloat(position.size),
-                status: position.status as PositionStatus,
-                side: position.side as PositionSide,
-                userId,
-                marketId: market.id,
-            },
-            update: {
-                size: parseFloat(position.size),
-                status: position.status as PositionStatus,
-            },
-        })
+        if (position.status === PositionStatus.CLOSED) {
+            await prisma.position.delete({
+                where: {
+                    marketId: market.id,
+                },
+            })
+        } else {
+            const size = parseFloat(position.size)
+
+            await prisma.position.upsert({
+                where: {
+                    marketId: market.id,
+                },
+                create: {
+                    size,
+                    side: position.side as PositionSide,
+                    userId,
+                    marketId: market.id,
+                },
+                update: {
+                    size,
+                },
+            })
+        }
     }
 }
 

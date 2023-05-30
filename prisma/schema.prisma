@@ -59,19 +59,13 @@ model Position {
 
   size Float
 
-  status PositionStatus
-  side   PositionSide
+  side PositionSide
 
   user   User @relation(fields: [userId], references: [id])
   userId Int
 
   market   Market @relation(fields: [marketId], references: [id])
   marketId Int    @unique
-}
-
-enum PositionStatus {
-  OPEN
-  CLOSED
 }
 
 enum PositionSide {
