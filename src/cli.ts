@@ -13,6 +13,7 @@ import { hideBin } from 'yargs/helpers'
 import {
     handleMarketsWSMessage,
     handleOrderbookWSMessage,
+    handlePositionsWSMessage,
 } from './execution/calculations'
 import { getCointegratedPairs } from './strategy/cointegration'
 import { getMarkets, getMarketsPrices, getPairs } from './strategy/market'
@@ -87,6 +88,8 @@ yargs(hideBin(process.argv))
                 tradeableCapital,
             } = argv
 
+            const spinner = ora()
+
             const network = await select<Network>({
                 message: 'Select network',
                 choices: [
@@ -125,68 +128,90 @@ yargs(hideBin(process.argv))
                         : 'https://ethereum-goerli.publicnode.com',
             })
 
-            const spinner = ora('Starting bot').start()
-
             const docker = new Docker()
 
+            spinner.start('Starting docker containers')
             await docker.startPostgres({ fresh })
             await docker.startRedis({ fresh })
             await docker.startAPIServer({ fresh })
+            spinner.succeed('Docker containers started')
 
+            spinner.start('Push the state from Prisma schema to the database')
             const execAsync = promisify(exec)
             await execAsync('npx prisma db push')
+            spinner.succeed(
+                'The state pushed from Prisma schema to the database'
+            )
 
-            await initClients(network, httpHost, wsHost, httpProvider)
+            const { userId } = await initClients(
+                network,
+                httpHost,
+                wsHost,
+                httpProvider
+            )
 
-            console.log('[+]Fetching markets')
-            await getMarkets()
+            // spinner.start('Fetching markets')
+            // await getMarkets()
+            // spinner.succeed('Markets fetched')
 
-            console.log('[+]Storing pairs')
-            await getPairs()
+            // spinner.start('Storing pairs')
+            // await getPairs()
+            // spinner.succeed('Pairs stored')
 
-            console.log('[+]Fetching markets prices')
-            await getMarketsPrices(timeFrame, candlesLimit)
+            // spinner.start('Fetching markets prices')
+            // await getMarketsPrices(timeFrame, candlesLimit)
+            // spinner.succeed('Markets prices fetched')
 
-            console.log('[+]Finding cointegrated pairs')
-            await getCointegratedPairs()
+            // spinner.start('Finding cointegrated pairs')
+            // await getCointegratedPairs()
+            // spinner.succeed('Cointegrated pairs found')
 
             const worker = new Worker<
                 WebSocketMessage,
                 any,
                 WebSocketMessage['channel']
-            >('dydx-ws', async (job) => {
-                switch (job.name) {
-                    case 'v3_markets':
-                        await handleMarketsWSMessage(job.data)
-                        break
-                    case 'v3_orderbook':
-                        await handleOrderbookWSMessage(job.data)
-                        break
-                }
-            })
-
-            const coint = await prisma.coint.findFirstOrThrow({
-                where: {
-                    cointFlag: true,
+            >(
+                'dydx-ws',
+                async (job) => {
+                    switch (job.name) {
+                        case 'v3_markets':
+                            await handleMarketsWSMessage(job.data)
+                            break
+                        case 'v3_orderbook':
+                            await handleOrderbookWSMessage(job.data)
+                            break
+                        case 'v3_accounts':
+                            await handlePositionsWSMessage(job.data, userId)
+                            break
+                    }
                 },
-                orderBy: {
-                    zeroCrossing: 'desc',
-                },
-                select: {
-                    pair: true,
-                },
-            })
+                { autorun: false }
+            )
 
-            while (true) {
-                const marketAOrders = await prisma.order.findMany({
-                    where: { marketId: coint.pair.marketAId },
-                })
-                const marketBOrders = await prisma.order.findMany({
-                    where: { marketId: coint.pair.marketBId },
-                })
+            await worker.run()
 
-                await sleep(2000)
-            }
+            // const coint = await prisma.coint.findFirstOrThrow({
+            //     where: {
+            //         cointFlag: true,
+            //     },
+            //     orderBy: {
+            //         zeroCrossing: 'desc',
+            //     },
+            //     select: {
+            //         pair: true,
+            //     },
+            // })
+
+            // while (true) {
+            //     const marketAOrders = await prisma.order.findMany({
+            //         where: { marketId: coint.pair.marketAId },
+            //     })
+            //     const marketBOrders = await prisma.order.findMany({
+            //         where: { marketId: coint.pair.marketBId },
+            //     })
+
+            //     await sleep(2000)
+            // }
 
             await docker.stopAll()
         }

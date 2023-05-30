@@ -1,4 +1,5 @@
-import { Order } from '@prisma/client'
+import { AccountResponseObject } from '@dydxprotocol/v3-client'
+import { Order, PositionSide, PositionStatus } from '@prisma/client'
 
 import { WebSocketMessage } from '../utils/dydxClient'
 import { prisma } from '../utils/prismaClient'
@@ -139,6 +140,37 @@ export async function handleOrderbookWSMessage(data: WebSocketMessage) {
                     })
                 }
             }
+        }
+    }
+}
+
+export async function handlePositionsWSMessage(
+    data: WebSocketMessage,
+    userId: number
+) {
+    if (data.type === 'subscribed') {
+        await prisma.position.deleteMany({ where: { userId } })
+
+        const { account } = data.contents as {
+            account: AccountResponseObject
+        }
+
+        for (const [marketName, position] of Object.entries(
+            account.openPositions
+        )) {
+            const market = await prisma.market.findFirstOrThrow({
+                where: { name: marketName },
+            })
+
+            await prisma.position.create({
+                data: {
+                    size: parseFloat(position.size),
+                    status: position.status as PositionStatus,
+                    side: position.side as PositionSide,
+                    userId,
+                    marketId: market.id,
+                },
+            })
         }
     }
 }

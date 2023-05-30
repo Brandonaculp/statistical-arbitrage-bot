@@ -8,12 +8,13 @@ datasource db {
 }
 
 model User {
-  id         Int      @id @default(autoincrement())
+  id         Int        @id @default(autoincrement())
   username   String
   address    String
   privateKey String
   network    Network
   apiKeys    ApiKey[]
+  Position   Position[]
 }
 
 enum Network {
@@ -31,13 +32,14 @@ model ApiKey {
 }
 
 model Market {
-  id         Int      @id @default(autoincrement())
-  name       String   @unique
-  indexPrice Float    @default(0)
+  id         Int        @id @default(autoincrement())
+  name       String     @unique
+  indexPrice Float      @default(0)
   orders     Order[]
   candles    Candle[]
-  pairsA     Pair[]   @relation("MarketA")
-  pairsB     Pair[]   @relation("MarketB")
+  pairsA     Pair[]     @relation("MarketA")
+  pairsB     Pair[]     @relation("MarketB")
+  Position   Position[]
 }
 
 model Pair {
@@ -50,6 +52,31 @@ model Pair {
   marketBId Int
 
   Coint Coint?
+}
+
+model Position {
+  id Int @id @default(autoincrement())
+
+  size Float
+
+  status PositionStatus
+  side   PositionSide
+
+  user   User @relation(fields: [userId], references: [id])
+  userId Int
+
+  market   Market @relation(fields: [marketId], references: [id])
+  marketId Int
+}
+
+enum PositionStatus {
+  OPEN
+  CLOSE
+}
+
+enum PositionSide {
+  LONG
+  SHORT
 }
 
 model Candle {

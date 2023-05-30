@@ -1,15 +1,9 @@
-import {
-    ApiKeyCredentials,
-    DydxClient,
-    Market,
-    OnboardingActionString,
-    SignOnboardingAction,
-    SigningMethod,
-} from '@dydxprotocol/v3-client'
+import { ApiKeyCredentials, DydxClient, Market } from '@dydxprotocol/v3-client'
 import { RequestMethod } from '@dydxprotocol/v3-client/build/src/lib/axios'
 import { Separator, input, password, select } from '@inquirer/prompts'
 import { Network } from '@prisma/client'
 import { Queue } from 'bullmq'
+import ora from 'ora'
 import Web3 from 'web3'
 import WebSocket from 'ws'
 
@@ -38,6 +32,9 @@ async function createUser(network: Network) {
     const username = await input({ message: 'Enter username' })
     const privateKey = await password({ message: 'Enter your private key' })
 
+    const spinner = ora()
+    spinner.start('Creating user')
+
     const userExists = await prisma.user.findFirst({
         where: { privateKey, network },
     })
@@ -48,24 +45,20 @@ async function createUser(network: Network) {
     client.web3.eth.accounts.wallet.add(privateKey)
     const address = client.web3.eth.accounts.wallet[0].address
 
-    const keyPair = await client.onboarding.deriveStarkKey(address)
+    const { exists } = await client.public.doesUserExistWithAddress(address)
 
-    const signer = new SignOnboardingAction(client.web3, networkId[network])
-    const signature = await signer.sign(address, SigningMethod.Hash, {
-        action: OnboardingActionString.ONBOARDING,
-    })
+    if (!exists) {
+        const keyPair = await client.onboarding.deriveStarkKey(address)
 
-    await client.onboarding.createUser(
-        {
-            starkKey: keyPair.publicKey,
-            starkKeyYCoordinate: keyPair.publicKeyYCoordinate,
-            country: 'DE',
-        },
-        address,
-        signature
-    )
-
-    const { apiKey } = await client.ethPrivate.createApiKey(address)
+        await client.onboarding.createUser(
+            {
+                starkKey: keyPair.publicKey,
+                starkKeyYCoordinate: keyPair.publicKeyYCoordinate,
+            },
+            address
+        )
+    }
+    const apiKey = await client.onboarding.recoverDefaultApiCredentials(address)
 
     const user = await prisma.user.create({
         data: {
@@ -85,7 +78,9 @@ async function createUser(network: Network) {
         },
     })
 
-    return apiKey
+    spinner.succeed('User created')
+
+    return { userId: user.id, apiKey }
 }
 
 export async function initClients(
@@ -109,7 +104,7 @@ export async function initClients(
         include: { apiKeys: true },
     })
 
-    const user = await select<(typeof users)[0] | string>({
+    let user = await select<(typeof users)[0] | string>({
         message: 'Select user',
         choices: [
             ...users.map((user) => ({ name: user.username, value: user })),
@@ -118,8 +113,17 @@ export async function initClients(
         ],
     })
 
-    let apiKey: ApiKeyCredentials =
-        typeof user === 'string' ? await createUser(network) : user.apiKeys[0]
+    let userId: number
+    let apiKey: ApiKeyCredentials
+
+    if (typeof user === 'string') {
+        const result = await createUser(network)
+        userId = result.userId
+        apiKey = result.apiKey
+    } else {
+        userId = user.id
+        apiKey = user.apiKeys[0]
+    }
 
     client.apiKeyCredentials = apiKey
 
@@ -170,10 +174,6 @@ export async function initClients(
     ws.on('message', async (rawData) => {
         const data = JSON.parse(rawData.toString()) as WebSocketMessage
 
-        if (data.channel === 'v3_accounts') {
-            console.log(data)
-        }
-
         if (data.channel) {
             queue.add(data.channel, data, {
                 removeOnComplete: true,
@@ -190,5 +190,5 @@ export async function initClients(
         console.error(error)
     })
 
-    return { client, ws }
+    return { client, ws, userId }
 }
