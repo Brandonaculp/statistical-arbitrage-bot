@@ -27,8 +27,8 @@ model ApiKey {
   key        String
   secret     String
   passphrase String
-  user       User?  @relation(fields: [userId], references: [id])
-  userId     Int?
+  user       User   @relation(fields: [userId], references: [id])
+  userId     Int
 }
 
 model Market {
@@ -66,12 +66,12 @@ model Position {
   userId Int
 
   market   Market @relation(fields: [marketId], references: [id])
-  marketId Int
+  marketId Int    @unique
 }
 
 enum PositionStatus {
   OPEN
-  CLOSE
+  CLOSED
 }
 
 enum PositionSide {

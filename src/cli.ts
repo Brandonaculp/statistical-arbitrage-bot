@@ -138,7 +138,7 @@ yargs(hideBin(process.argv))
 
             spinner.start('Push the state from Prisma schema to the database')
             const execAsync = promisify(exec)
-            await execAsync('npx prisma db push')
+            await execAsync('npx prisma db push --accept-data-loss')
             spinner.succeed(
                 'The state pushed from Prisma schema to the database'
             )
@@ -150,21 +150,21 @@ yargs(hideBin(process.argv))
                 httpProvider
             )
 
-            // spinner.start('Fetching markets')
-            // await getMarkets()
-            // spinner.succeed('Markets fetched')
+            spinner.start('Fetching markets')
+            await getMarkets()
+            spinner.succeed('Markets fetched')
 
-            // spinner.start('Storing pairs')
-            // await getPairs()
-            // spinner.succeed('Pairs stored')
+            spinner.start('Storing pairs')
+            await getPairs()
+            spinner.succeed('Pairs stored')
 
-            // spinner.start('Fetching markets prices')
-            // await getMarketsPrices(timeFrame, candlesLimit)
-            // spinner.succeed('Markets prices fetched')
+            spinner.start('Fetching markets prices')
+            await getMarketsPrices(timeFrame, candlesLimit)
+            spinner.succeed('Markets prices fetched')
 
-            // spinner.start('Finding cointegrated pairs')
-            // await getCointegratedPairs()
-            // spinner.succeed('Cointegrated pairs found')
+            spinner.start('Finding cointegrated pairs')
+            await getCointegratedPairs()
+            spinner.succeed('Cointegrated pairs found')
 
             const worker = new Worker<
                 WebSocketMessage,
@@ -185,7 +185,13 @@ yargs(hideBin(process.argv))
                             break
                     }
                 },
-                { autorun: false }
+                {
+                    autorun: false,
+                    connection: {
+                        host: 'localhost',
+                        port: 6379,
+                    },
+                }
             )
 
             await worker.run()

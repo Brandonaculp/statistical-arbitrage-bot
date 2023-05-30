@@ -1,4 +1,7 @@
-import { AccountResponseObject } from '@dydxprotocol/v3-client'
+import {
+    AccountResponseObject,
+    PositionResponseObject,
+} from '@dydxprotocol/v3-client'
 import { Order, PositionSide, PositionStatus } from '@prisma/client'
 
 import { WebSocketMessage } from '../utils/dydxClient'
@@ -172,6 +175,39 @@ export async function handlePositionsWSMessage(
                 },
             })
         }
+
+        return
+    }
+
+    const { positions } = data.contents as {
+        positions?: PositionResponseObject[]
+    }
+
+    if (!positions) return
+
+    for (const position of positions) {
+        const market = await prisma.market.findFirstOrThrow({
+            where: {
+                name: position.market,
+            },
+        })
+
+        await prisma.position.upsert({
+            where: {
+                marketId: market.id,
+            },
+            create: {
+                size: parseFloat(position.size),
+                status: position.status as PositionStatus,
+                side: position.side as PositionSide,
+                userId,
+                marketId: market.id,
+            },
+            update: {
+                size: parseFloat(position.size),
+                status: position.status as PositionStatus,
+            },
+        })
     }
 }
 
