@@ -63,6 +63,10 @@ async function createUser(network: Network) {
         address
     )
 
+    client.apiKeyCredentials = defaultApiKey
+    // @ts-ignore
+    client.starkPrivateKey = keyPair.privateKey
+
     const {
         account: { positionId },
     } = await client.private.getAccount(address)

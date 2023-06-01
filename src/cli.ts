@@ -167,41 +167,38 @@ yargs(hideBin(process.argv))
             // await getCointegratedPairs()
             // spinner.succeed('Cointegrated pairs found')
 
-            const worker = new Worker<
-                WebSocketMessage,
-                any,
-                WebSocketMessage['channel']
-            >(
-                'dydx-ws',
-                async (job) => {
-                    switch (job.name) {
-                        case 'v3_markets':
-                            await handleMarketsWSMessage(job.data)
-                            break
-                        case 'v3_orderbook':
-                            await handleOrderbookWSMessage(job.data)
-                            break
-                        case 'v3_accounts':
-                            await handlePositionsWSMessage(job.data, user)
-                            break
-                    }
-                },
-                {
-                    connection: {
-                        host: 'localhost',
-                        port: 6379,
-                    },
-                }
-            )
+            // const worker = new Worker<
+            //     WebSocketMessage,
+            //     any,
+            //     WebSocketMessage['channel']
+            // >(
+            //     'dydx-ws',
+            //     async (job) => {
+            //         switch (job.name) {
+            //             case 'v3_markets':
+            //                 await handleMarketsWSMessage(job.data)
+            //                 break
+            //             case 'v3_orderbook':
+            //                 await handleOrderbookWSMessage(job.data)
+            //                 break
+            //             case 'v3_accounts':
+            //                 await handlePositionsWSMessage(job.data, user)
+            //                 break
+            //         }
+            //     },
+            //     {
+            //         connection: {
+            //             host: 'localhost',
+            //             port: 6379,
+            //         },
+            //     }
+            // )
 
             const market = await prisma.market.findFirstOrThrow({
                 where: { name: 'ETH-USD' },
             })
 
             await placeMarketCloseOrder(user, market, OrderSide.SELL, '1')
-
-            await worker.close()
-
             // await docker.stopAll()
         }
     )
