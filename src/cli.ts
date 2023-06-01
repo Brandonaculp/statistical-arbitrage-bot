@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { CandleResolution } from '@dydxprotocol/v3-client'
+import { CandleResolution, OrderSide } from '@dydxprotocol/v3-client'
 import { input, select } from '@inquirer/prompts'
 import { Network } from '@prisma/client'
 import { Worker } from 'bullmq'
@@ -10,6 +10,7 @@ import { promisify } from 'util'
 import yargs from 'yargs'
 import { hideBin } from 'yargs/helpers'
 
+import { placeMarketCloseOrder } from './execution/closePositions'
 import {
     handleMarketsWSMessage,
     handleOrderbookWSMessage,
@@ -18,7 +19,7 @@ import {
 import { getCointegratedPairs } from './strategy/cointegration'
 import { getMarkets, getMarketsPrices, getPairs } from './strategy/market'
 import { Docker } from './utils/docker'
-import { WebSocketMessage, initClients } from './utils/dydxClient'
+import { WebSocketMessage, client, initClients } from './utils/dydxClient'
 import { prisma } from './utils/prismaClient'
 import { sleep } from './utils/sleep'
 
@@ -143,7 +144,7 @@ yargs(hideBin(process.argv))
                 'The state pushed from Prisma schema to the database'
             )
 
-            const { userId } = await initClients(
+            const { user } = await initClients(
                 network,
                 httpHost,
                 wsHost,
@@ -154,17 +155,17 @@ yargs(hideBin(process.argv))
             await getMarkets()
             spinner.succeed('Markets fetched')
 
-            spinner.start('Storing pairs')
-            await getPairs()
-            spinner.succeed('Pairs stored')
+            // spinner.start('Storing pairs')
+            // await getPairs()
+            // spinner.succeed('Pairs stored')
 
-            spinner.start('Fetching markets prices')
-            await getMarketsPrices(timeFrame, candlesLimit)
-            spinner.succeed('Markets prices fetched')
+            // spinner.start('Fetching markets prices')
+            // await getMarketsPrices(timeFrame, candlesLimit)
+            // spinner.succeed('Markets prices fetched')
 
-            spinner.start('Finding cointegrated pairs')
-            await getCointegratedPairs()
-            spinner.succeed('Cointegrated pairs found')
+            // spinner.start('Finding cointegrated pairs')
+            // await getCointegratedPairs()
+            // spinner.succeed('Cointegrated pairs found')
 
             const worker = new Worker<
                 WebSocketMessage,
@@ -181,12 +182,11 @@ yargs(hideBin(process.argv))
                             await handleOrderbookWSMessage(job.data)
                             break
                         case 'v3_accounts':
-                            await handlePositionsWSMessage(job.data, userId)
+                            await handlePositionsWSMessage(job.data, user)
                             break
                     }
                 },
                 {
-                    autorun: false,
                     connection: {
                         host: 'localhost',
                         port: 6379,
@@ -194,32 +194,15 @@ yargs(hideBin(process.argv))
                 }
             )
 
-            await worker.run()
+            const market = await prisma.market.findFirstOrThrow({
+                where: { name: 'ETH-USD' },
+            })
 
-            // const coint = await prisma.coint.findFirstOrThrow({
-            //     where: {
-            //         cointFlag: true,
-            //     },
-            //     orderBy: {
-            //         zeroCrossing: 'desc',
-            //     },
-            //     select: {
-            //         pair: true,
-            //     },
-            // })
+            await placeMarketCloseOrder(user, market, OrderSide.SELL, '1')
 
-            // while (true) {
-            //     const marketAOrders = await prisma.order.findMany({
-            //         where: { marketId: coint.pair.marketAId },
-            //     })
-            //     const marketBOrders = await prisma.order.findMany({
-            //         where: { marketId: coint.pair.marketBId },
-            //     })
+            await worker.close()
 
-            //     await sleep(2000)
-            // }
-
-            await docker.stopAll()
+            // await docker.stopAll()
         }
     )
     .option('verbose', {

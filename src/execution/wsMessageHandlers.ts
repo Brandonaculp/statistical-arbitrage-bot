@@ -3,7 +3,7 @@ import {
     PositionResponseObject,
     PositionStatus,
 } from '@dydxprotocol/v3-client'
-import { PositionSide } from '@prisma/client'
+import { PositionSide, User } from '@prisma/client'
 
 import { WebSocketMessage } from '../utils/dydxClient'
 import { prisma } from '../utils/prismaClient'
@@ -150,10 +150,10 @@ export async function handleOrderbookWSMessage(data: WebSocketMessage) {
 
 export async function handlePositionsWSMessage(
     data: WebSocketMessage,
-    userId: number
+    user: User
 ) {
     if (data.type === 'subscribed') {
-        await prisma.position.deleteMany({ where: { userId } })
+        await prisma.position.deleteMany({ where: { userId: user.id } })
 
         const { account } = data.contents as {
             account: AccountResponseObject
@@ -170,7 +170,7 @@ export async function handlePositionsWSMessage(
                 data: {
                     size: parseFloat(position.size),
                     side: position.side as PositionSide,
-                    userId,
+                    userId: user.id,
                     marketId: market.id,
                 },
             })
@@ -208,7 +208,7 @@ export async function handlePositionsWSMessage(
                 create: {
                     size,
                     side: position.side as PositionSide,
-                    userId,
+                    userId: user.id,
                     marketId: market.id,
                 },
                 update: {

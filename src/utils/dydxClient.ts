@@ -47,9 +47,9 @@ async function createUser(network: Network) {
 
     const { exists } = await client.public.doesUserExistWithAddress(address)
 
-    if (!exists) {
-        const keyPair = await client.onboarding.deriveStarkKey(address)
+    const keyPair = await client.onboarding.deriveStarkKey(address)
 
+    if (!exists) {
         await client.onboarding.createUser(
             {
                 starkKey: keyPair.publicKey,
@@ -58,29 +58,38 @@ async function createUser(network: Network) {
             address
         )
     }
-    const apiKey = await client.onboarding.recoverDefaultApiCredentials(address)
+
+    const defaultApiKey = await client.onboarding.recoverDefaultApiCredentials(
+        address
+    )
+
+    const {
+        account: { positionId },
+    } = await client.private.getAccount(address)
 
     const user = await prisma.user.create({
         data: {
             username,
             address,
             privateKey,
+            starkPrivateKey: keyPair.privateKey,
+            positionId,
             network,
         },
     })
 
-    await prisma.apiKey.create({
+    const apiKey = await prisma.apiKey.create({
         data: {
-            key: apiKey.key,
-            secret: apiKey.secret,
-            passphrase: apiKey.passphrase,
+            key: defaultApiKey.key,
+            secret: defaultApiKey.secret,
+            passphrase: defaultApiKey.passphrase,
             userId: user.id,
         },
     })
 
     spinner.succeed('User created')
 
-    return { userId: user.id, apiKey }
+    return { ...user, apiKeys: [apiKey] }
 }
 
 export async function initClients(
@@ -90,12 +99,6 @@ export async function initClients(
     httpProvider: string
 ) {
     const web3 = new Web3(new Web3.providers.HttpProvider(httpProvider))
-
-    client = new DydxClient(httpHost, {
-        // @ts-ignore
-        web3,
-        networkId: networkId[network],
-    })
 
     const users = await prisma.user.findMany({
         where: {
@@ -113,19 +116,24 @@ export async function initClients(
         ],
     })
 
-    let userId: number
     let apiKey: ApiKeyCredentials
 
+    client = new DydxClient(httpHost, {
+        // @ts-ignore
+        web3,
+        networkId: networkId[network],
+    })
+
     if (typeof user === 'string') {
-        const result = await createUser(network)
-        userId = result.userId
-        apiKey = result.apiKey
+        user = await createUser(network)
     } else {
-        userId = user.id
-        apiKey = user.apiKeys[0]
+        client.web3!.eth.accounts.wallet.add(user.privateKey)
     }
 
+    apiKey = user.apiKeys[0]
     client.apiKeyCredentials = apiKey
+    // @ts-ignore
+    client.starkPrivateKey = user.starkPrivateKey
 
     const queue = new Queue('dydx-ws', {
         connection: {
@@ -190,5 +198,5 @@ export async function initClients(
         console.error(error)
     })
 
-    return { client, ws, userId }
+    return { client, ws, user }
 }

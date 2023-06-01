@@ -8,13 +8,15 @@ datasource db {
 }
 
 model User {
-  id         Int        @id @default(autoincrement())
-  username   String
-  address    String
-  privateKey String
-  network    Network
-  apiKeys    ApiKey[]
-  Position   Position[]
+  id              Int        @id @default(autoincrement())
+  username        String
+  address         String
+  privateKey      String
+  starkPrivateKey String
+  network         Network
+  apiKeys         ApiKey[]
+  positions       Position[]
+  positionId      String
 }
 
 enum Network {
