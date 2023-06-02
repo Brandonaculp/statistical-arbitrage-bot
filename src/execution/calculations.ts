@@ -1,8 +1,9 @@
+import { OrderSide } from '@dydxprotocol/v3-client'
 import { Order } from '@prisma/client'
 
 export function getTradeDetails(
     orders: Order[],
-    direction: 'long' | 'short',
+    side: OrderSide,
     capital: number,
     stopLossFailSafe: number
 ) {
@@ -16,10 +17,17 @@ export function getTradeDetails(
         const nearestAsk = askOrders[0]
         const nearestBid = bidOrders[0]
 
-        const midPrice =
-            direction === 'long' ? nearestBid.price : nearestAsk.price
+        let midPrice: number
+        let stopLoss: number
 
-        const stopLoss = midPrice * (1 - stopLossFailSafe)
+        if (side === OrderSide.BUY) {
+            midPrice = nearestBid.price
+            stopLoss = midPrice * (1 - stopLossFailSafe)
+        } else {
+            midPrice = nearestAsk.price
+            stopLoss = midPrice * (1 + stopLossFailSafe)
+        }
+
         const quantity = capital / midPrice
 
         return {
