@@ -10,7 +10,7 @@ import { promisify } from 'util'
 import yargs from 'yargs'
 import { hideBin } from 'yargs/helpers'
 
-import { placeMarketCloseOrder } from './execution/closePositions'
+import { closeAllPositions } from './execution/closePositions'
 import {
     handleMarketsWSMessage,
     handleOrderbookWSMessage,
@@ -86,6 +86,7 @@ yargs(hideBin(process.argv))
                 candlesLimit,
                 fresh,
                 stopLoss,
+                limitOrder,
                 tradeableCapital,
             } = argv
 
@@ -198,7 +199,8 @@ yargs(hideBin(process.argv))
                 where: { name: 'ETH-USD' },
             })
 
-            await placeMarketCloseOrder(user, market, OrderSide.SELL, '1')
+            await closeAllPositions(user, [market])
+
             // await docker.stopAll()
         }
     )
