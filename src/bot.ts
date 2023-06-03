@@ -21,7 +21,8 @@ export class Bot {
         wsHost: string,
         httpProvider: string,
         timeFrame: CandleResolution,
-        candlesLimit: number
+        candlesLimit: number,
+        zscoreWindow: number
     ) {
         this.docker = new Docker()
         this.prisma = new PrismaClient()
@@ -32,7 +33,7 @@ export class Bot {
             httpProvider,
             this.prisma
         )
-        this.statistics = new Statistics()
+        this.statistics = new Statistics(zscoreWindow)
 
         this.marketData = new MarketData(
             this.dydx,

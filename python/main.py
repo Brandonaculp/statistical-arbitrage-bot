@@ -19,8 +19,9 @@ app = FastAPI(default_response_class=ORJSONResponse)
 class CalculateCointegrationBody(BaseModel):
     series1: List[float]
     series2: List[float]
+    window: int
 
 
 @app.post("/calculate_cointegration")
 async def calculate_cointegration_endpoint(body: CalculateCointegrationBody):
-    return calculate_cointegration(body.series1, body.series2)
+    return calculate_cointegration(body.series1, body.series2, body.window)

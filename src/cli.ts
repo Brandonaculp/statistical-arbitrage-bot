@@ -66,7 +66,7 @@ yargs(hideBin(process.argv))
                 })
         },
         async (argv) => {
-            const { fresh, timeFrame, candlesLimit } = argv
+            const { fresh, timeFrame, candlesLimit, zscoreWindow } = argv
 
             const network = await select<Network>({
                 message: 'Select network',
@@ -112,7 +112,8 @@ yargs(hideBin(process.argv))
                 wsHost,
                 httpProvider,
                 timeFrame,
-                candlesLimit
+                candlesLimit,
+                zscoreWindow
             )
 
             await bot.docker.startAll({ fresh })

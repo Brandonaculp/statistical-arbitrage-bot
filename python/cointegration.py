@@ -19,7 +19,7 @@ def calculate_spread(series1: List[float], series2: List[float], hedgeRatio: flo
     return spread
 
 
-def calculate_cointegration(series1: List[float], series2: List[float]):
+def calculate_cointegration(series1: List[float], series2: List[float], window: int):
     coint_flag = False
     coint_res = coint(series1, series2)
     coint_t = coint_res[0]
@@ -29,6 +29,7 @@ def calculate_cointegration(series1: List[float], series2: List[float]):
     hedge_ratio = model.params[0]
     spread = calculate_spread(series1, series2, hedge_ratio)
     zero_crossing = len(np.where(np.diff(np.sign(spread)))[0])
+    zscore_list = calculate_zscore(spread, window=window)
     if p_value < 0.5 and coint_t < critical_value:
         coint_flag = True
 
@@ -38,5 +39,6 @@ def calculate_cointegration(series1: List[float], series2: List[float]):
         "tValue": round(coint_t, 2),
         "criticalValue": round(critical_value, 2),
         "hedgeRatio": round(hedge_ratio, 2),
-        "zeroCrossing": zero_crossing
+        "zeroCrossing": zero_crossing,
+        "zscoreList": zscore_list.tolist()
     }
