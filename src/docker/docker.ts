@@ -1,14 +1,10 @@
+import { exec } from 'child_process'
 import Dockerode, { Container, ContainerCreateOptions } from 'dockerode'
 import { dirname, resolve } from 'path'
 import { fileURLToPath } from 'url'
+import { promisify } from 'util'
 
-export interface RunOptions {
-    fresh: boolean
-}
-
-export interface DockerError extends Error {
-    statusCode: number
-}
+import { DockerError, RunOptions } from './types'
 
 export class Docker {
     private docker: Dockerode
@@ -89,6 +85,9 @@ export class Docker {
             await container.start()
         }
 
+        const execAsync = promisify(exec)
+        await execAsync('npx prisma db push --accept-data-loss')
+
         this.containers.push(container)
     }
 
@@ -116,6 +115,12 @@ export class Docker {
         }
 
         this.containers.push(container)
+    }
+
+    public async startAll(options: RunOptions) {
+        await this.startAPIServer(options)
+        await this.startPostgres(options)
+        await this.startRedis(options)
     }
 
     private async findOrCreateContainer(

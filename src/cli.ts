@@ -1,27 +1,12 @@
 #!/usr/bin/env node
-import { CandleResolution, OrderSide } from '@dydxprotocol/v3-client'
+import { CandleResolution } from '@dydxprotocol/v3-client'
 import { input, select } from '@inquirer/prompts'
 import { Network } from '@prisma/client'
-import { Worker } from 'bullmq'
-import { exec } from 'child_process'
 import * as dotenv from 'dotenv'
-import ora from 'ora'
-import { promisify } from 'util'
 import yargs from 'yargs'
 import { hideBin } from 'yargs/helpers'
 
-import { closeAllPositions } from './execution/closePositions'
-import {
-    handleMarketsWSMessage,
-    handleOrderbookWSMessage,
-    handlePositionsWSMessage,
-} from './execution/wsMessageHandlers'
-import { getCointegratedPairs } from './strategy/cointegration'
-import { getMarkets, getMarketsPrices, getPairs } from './strategy/market'
-import { Docker } from './utils/docker'
-import { WebSocketMessage, client, initClients } from './utils/dydxClient'
-import { prisma } from './utils/prismaClient'
-import { sleep } from './utils/sleep'
+import { Bot } from './bot'
 
 dotenv.config()
 
@@ -81,16 +66,7 @@ yargs(hideBin(process.argv))
                 })
         },
         async (argv) => {
-            const {
-                timeFrame,
-                candlesLimit,
-                fresh,
-                stopLoss,
-                limitOrder,
-                tradeableCapital,
-            } = argv
-
-            const spinner = ora()
+            const { fresh, timeFrame, candlesLimit } = argv
 
             const network = await select<Network>({
                 message: 'Select network',
@@ -130,78 +106,16 @@ yargs(hideBin(process.argv))
                         : 'https://ethereum-goerli.publicnode.com',
             })
 
-            const docker = new Docker()
-
-            spinner.start('Starting docker containers')
-            await docker.startPostgres({ fresh })
-            await docker.startRedis({ fresh })
-            await docker.startAPIServer({ fresh })
-            spinner.succeed('Docker containers started')
-
-            spinner.start('Push the state from Prisma schema to the database')
-            const execAsync = promisify(exec)
-            await execAsync('npx prisma db push --accept-data-loss')
-            spinner.succeed(
-                'The state pushed from Prisma schema to the database'
-            )
-
-            const { user } = await initClients(
+            const bot = new Bot(
                 network,
                 httpHost,
                 wsHost,
-                httpProvider
+                httpProvider,
+                timeFrame,
+                candlesLimit
             )
 
-            spinner.start('Fetching markets')
-            await getMarkets()
-            spinner.succeed('Markets fetched')
-
-            // spinner.start('Storing pairs')
-            // await getPairs()
-            // spinner.succeed('Pairs stored')
-
-            // spinner.start('Fetching markets prices')
-            // await getMarketsPrices(timeFrame, candlesLimit)
-            // spinner.succeed('Markets prices fetched')
-
-            // spinner.start('Finding cointegrated pairs')
-            // await getCointegratedPairs()
-            // spinner.succeed('Cointegrated pairs found')
-
-            // const worker = new Worker<
-            //     WebSocketMessage,
-            //     any,
-            //     WebSocketMessage['channel']
-            // >(
-            //     'dydx-ws',
-            //     async (job) => {
-            //         switch (job.name) {
-            //             case 'v3_markets':
-            //                 await handleMarketsWSMessage(job.data)
-            //                 break
-            //             case 'v3_orderbook':
-            //                 await handleOrderbookWSMessage(job.data)
-            //                 break
-            //             case 'v3_accounts':
-            //                 await handlePositionsWSMessage(job.data, user)
-            //                 break
-            //         }
-            //     },
-            //     {
-            //         connection: {
-            //             host: 'localhost',
-            //             port: 6379,
-            //         },
-            //     }
-            // )
-
-            const market = await prisma.market.findFirstOrThrow({
-                where: { name: 'ETH-USD' },
-            })
-
-            await closeAllPositions(user, [market])
-
-            // await docker.stopAll()
+            await bot.docker.startAll({ fresh })
         }
     )
     .option('verbose', {

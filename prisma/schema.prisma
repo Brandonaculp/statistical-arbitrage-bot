@@ -14,7 +14,7 @@ model User {
   privateKey      String
   starkPrivateKey String
   network         Network
-  apiKeys         ApiKey[]
+  apiKey          ApiKey?
   positions       Position[]
   positionId      String
 }
@@ -30,7 +30,7 @@ model ApiKey {
   secret     String
   passphrase String
   user       User   @relation(fields: [userId], references: [id])
-  userId     Int
+  userId     Int    @unique
 }
 
 model Market {
