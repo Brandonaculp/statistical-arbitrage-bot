@@ -167,6 +167,23 @@ export class Trade {
         }
     }
 
+    async getMarketTradeLiquidity(market: Market) {
+        const { trades } = await this.dydx.client.public.getTrades({
+            market: market.name as DydxMarket,
+        })
+
+        if (trades.length === 0) {
+            throw new Error('no trades')
+        }
+
+        const sum = trades.reduce(
+            (acc, trade) => acc + parseFloat(trade.size),
+            0
+        )
+
+        return sum / trades.length
+    }
+
     private getTradeDetails(
         orders: Order[],
         side: OrderSide,
