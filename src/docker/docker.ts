@@ -153,7 +153,7 @@ export class Docker {
         if (containers.length === 0) return {}
 
         if (containers.length > 1) {
-            throw new Error(`Multiple containers with name ${name} found`)
+            throw new Error(`multiple containers with name ${name} found`)
         }
 
         return {

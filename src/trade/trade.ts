@@ -4,14 +4,18 @@ import {
     OrderType,
     TimeInForce,
 } from '@dydxprotocol/v3-client'
-import { Market, Order, PrismaClient, User } from '@prisma/client'
+import { Market, Order, PrismaClient } from '@prisma/client'
 
 import { Dydx } from '../dydx/dydx'
+import { Statistics } from '../statistics/statistics'
 
 export class Trade {
     constructor(
         public readonly dydx: Dydx,
-        public readonly prisma: PrismaClient
+        public readonly prisma: PrismaClient,
+        public readonly statistics: Statistics,
+        public readonly capital: number,
+        public readonly stopLossFailSafe: number
     ) {}
 
     async placeOrder(
@@ -86,12 +90,7 @@ export class Trade {
         }
     }
 
-    async initializeOrderExecution(
-        market: Market,
-        side: OrderSide,
-        capital: number,
-        stopLossFailSafe: number
-    ) {
+    async initializeOrderExecution(market: Market, side: OrderSide) {
         const orders = await this.prisma.order.findMany({
             where: {
                 marketId: market.id,
@@ -100,9 +99,7 @@ export class Trade {
 
         const { midPrice, stopLoss, quantity } = this.getTradeDetails(
             orders,
-            side,
-            capital,
-            stopLossFailSafe
+            side
         )
 
         //TODO: return order id
@@ -184,12 +181,77 @@ export class Trade {
         return sum / trades.length
     }
 
-    private getTradeDetails(
-        orders: Order[],
-        side: OrderSide,
-        capital: number,
-        stopLossFailSafe: number
+    async getLatestZscore(
+        market1: Market,
+        market2: Market,
+        side1: OrderSide,
+        side2: OrderSide
     ) {
+        const orders1 = await this.prisma.order.findMany({
+            where: {
+                marketId: market1.id,
+            },
+        })
+        const orders2 = await this.prisma.order.findMany({
+            where: {
+                marketId: market2.id,
+            },
+        })
+
+        const { midPrice: midPrice1 } = this.getTradeDetails(orders1, side1)
+        const { midPrice: midPrice2 } = this.getTradeDetails(orders2, side2)
+
+        const series1 = (
+            await this.prisma.candle.findMany({
+                where: {
+                    marketId: market1.id,
+                },
+                select: {
+                    close: true,
+                },
+                orderBy: {
+                    createdAt: 'asc',
+                },
+            })
+        ).map((candle) => candle.close)
+        const series2 = (
+            await this.prisma.candle.findMany({
+                where: {
+                    marketId: market2.id,
+                },
+                select: {
+                    close: true,
+                },
+                orderBy: {
+                    createdAt: 'asc',
+                },
+            })
+        ).map((candle) => candle.close)
+
+        if (series1.length === 0 || series2.length === 0) {
+            throw new Error('one or both of the series are empty')
+        }
+
+        series1.pop()
+        series2.pop()
+
+        series1.push(midPrice1)
+        series2.push(midPrice2)
+
+        const { zscoreList } = await this.statistics.calculateCoint(
+            series1,
+            series2
+        )
+
+        const zscore = zscoreList[zscoreList.length - 1]
+
+        return {
+            signalSignPositive: zscore > 0,
+            zscore,
+        }
+    }
+
+    getTradeDetails(orders: Order[], side: OrderSide) {
         const bidOrders = orders
             .filter((order) => order.side === 'BID')
             .sort()
@@ -205,13 +267,13 @@ export class Trade {
 
             if (side === OrderSide.BUY) {
                 midPrice = nearestBid.price
-                stopLoss = midPrice * (1 - stopLossFailSafe)
+                stopLoss = midPrice * (1 - this.stopLossFailSafe)
             } else {
                 midPrice = nearestAsk.price
-                stopLoss = midPrice * (1 + stopLossFailSafe)
+                stopLoss = midPrice * (1 + this.stopLossFailSafe)
             }
 
-            const quantity = capital / midPrice
+            const quantity = this.capital / midPrice
 
             return {
                 midPrice,
@@ -220,6 +282,6 @@ export class Trade {
             }
         }
 
-        throw new Error('One or both of the bid and ask orders are empty')
+        throw new Error('one or both of the bid and ask orders are empty')
     }
 }

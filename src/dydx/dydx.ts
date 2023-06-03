@@ -54,7 +54,7 @@ export class Dydx {
 
     private initWorker() {
         if (!this.user) {
-            throw new Error('User is not initialized')
+            throw new Error('user is not initialized')
         }
 
         this.worker = new DydxWorker(this.prisma, this.user)
