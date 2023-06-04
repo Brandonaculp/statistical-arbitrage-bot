@@ -15,9 +15,9 @@ export class MarketData {
 
     async sync() {
         await this.updateMarkets()
-        await this.storePairs()
-        await this.updateMarketsPrices()
-        await this.updateCointegratedPairs()
+        // await this.storePairs()
+        // await this.updateMarketsPrices()
+        // await this.updateCointegratedPairs()
     }
 
     async updateMarkets() {
@@ -116,15 +116,24 @@ export class MarketData {
 
             if (series1.length !== series2.length) continue
 
-            const cointResult = await this.statistics.calculateCoint(
-                series1,
-                series2
-            )
+            const {
+                cointFlag,
+                criticalValue,
+                zeroCrossing,
+                hedgeRatio,
+                tValue,
+                pValue,
+            } = await this.statistics.calculateCoint(series1, series2)
 
             await this.prisma.coint.create({
                 data: {
                     pairId: pair.id,
-                    ...cointResult,
+                    cointFlag,
+                    criticalValue,
+                    zeroCrossing,
+                    hedgeRatio,
+                    tValue,
+                    pValue,
                 },
             })
         }

@@ -1,16 +1,25 @@
 import {
     AccountResponseObject,
+    OrderResponseObject,
+    OrderStatus,
     PositionResponseObject,
     PositionStatus,
 } from '@dydxprotocol/v3-client'
-import { PositionSide, PrismaClient, User } from '@prisma/client'
+import {
+    ActiveOrderSide,
+    ActiveOrderStatus,
+    ActiveOrderType,
+    PositionSide,
+    PrismaClient,
+    User,
+} from '@prisma/client'
 import { Worker } from 'bullmq'
 
+import { WebSocketMessage } from '../ws/types'
 import {
     MarketsResponseObject,
     OrderbookChannelDataResponseObject,
     OrderbookSubscribeResponseObject,
-    WebSocketMessage,
 } from './types'
 
 export class DydxWorker {
@@ -27,13 +36,13 @@ export class DydxWorker {
             async (job) => {
                 switch (job.name) {
                     case 'v3_markets':
-                        await this.handleMarketsWSMessage(job.data)
+                        // await this.handleMarketsWSMessage(job.data)
                         break
                     case 'v3_orderbook':
-                        await this.handleOrderbookWSMessage(job.data)
+                        // await this.handleOrderbookWSMessage(job.data)
                         break
                     case 'v3_accounts':
-                        await this.handlePositionsWSMessage(job.data)
+                        await this.handleAccountsWSMessage(job.data)
                         break
                 }
             },
@@ -189,14 +198,48 @@ export class DydxWorker {
         }
     }
 
-    private async handlePositionsWSMessage(data: WebSocketMessage) {
+    private async handleAccountsWSMessage(data: WebSocketMessage) {
         if (data.type === 'subscribed') {
             await this.prisma.position.deleteMany({
                 where: { userId: this.user.id },
             })
 
-            const { account } = data.contents as {
+            await this.prisma.activeOrder.deleteMany({
+                where: {
+                    userId: this.user.id,
+                },
+            })
+
+            const { account, orders } = data.contents as {
+                orders: OrderResponseObject[]
                 account: AccountResponseObject
+            }
+
+            for (const order of orders) {
+                if (
+                    order.status === OrderStatus.CANCELED ||
+                    order.status === OrderStatus.FILLED
+                ) {
+                    continue
+                }
+
+                const market = await this.prisma.market.findFirstOrThrow({
+                    where: { name: order.market },
+                })
+
+                await this.prisma.activeOrder.create({
+                    data: {
+                        id: order.id,
+                        size: parseFloat(order.size),
+                        remainingSize: parseFloat(order.remainingSize),
+                        price: parseFloat(order.price),
+                        side: order.side as ActiveOrderSide,
+                        status: order.status as ActiveOrderStatus,
+                        type: order.type as ActiveOrderType,
+                        userId: this.user.id,
+                        marketId: market.id,
+                    },
+                })
             }
 
             for (const [marketName, position] of Object.entries(
@@ -219,42 +262,83 @@ export class DydxWorker {
             return
         }
 
-        const { positions } = data.contents as {
+        const { positions, orders } = data.contents as {
             positions?: PositionResponseObject[]
+            orders?: OrderResponseObject[]
         }
 
-        if (!positions) return
+        if (orders) {
+            for (const order of orders) {
+                if (
+                    order.status === OrderStatus.CANCELED ||
+                    order.status === OrderStatus.FILLED
+                ) {
+                    await this.prisma.activeOrder.delete({
+                        where: { id: order.id },
+                    })
 
-        for (const position of positions) {
-            const market = await this.prisma.market.findFirstOrThrow({
-                where: {
-                    name: position.market,
-                },
-            })
+                    continue
+                }
 
-            if (position.status === PositionStatus.CLOSED) {
-                await this.prisma.position.delete({
-                    where: {
-                        marketId: market.id,
-                    },
+                const market = await this.prisma.market.findFirstOrThrow({
+                    where: { name: order.market },
                 })
-            } else {
-                const size = parseFloat(position.size)
 
-                await this.prisma.position.upsert({
+                await this.prisma.activeOrder.upsert({
                     where: {
-                        marketId: market.id,
+                        id: order.id,
                     },
                     create: {
-                        size,
-                        side: position.side as PositionSide,
+                        id: order.id,
+                        size: parseFloat(order.size),
+                        remainingSize: parseFloat(order.remainingSize),
+                        price: parseFloat(order.price),
+                        side: order.side as ActiveOrderSide,
+                        status: order.status as ActiveOrderStatus,
+                        type: order.type as ActiveOrderType,
                         userId: this.user.id,
                         marketId: market.id,
                     },
                     update: {
-                        size,
+                        remainingSize: parseFloat(order.remainingSize),
+                        status: order.status as ActiveOrderStatus,
                     },
                 })
+            }
+        }
+
+        if (positions) {
+            for (const position of positions) {
+                const market = await this.prisma.market.findFirstOrThrow({
+                    where: {
+                        name: position.market,
+                    },
+                })
+
+                if (position.status === PositionStatus.CLOSED) {
+                    await this.prisma.position.delete({
+                        where: {
+                            marketId: market.id,
+                        },
+                    })
+                } else {
+                    const size = parseFloat(position.size)
+
+                    await this.prisma.position.upsert({
+                        where: {
+                            marketId: market.id,
+                        },
+                        create: {
+                            size,
+                            side: position.side as PositionSide,
+                            userId: this.user.id,
+                            marketId: market.id,
+                        },
+                        update: {
+                            size,
+                        },
+                    })
+                }
             }
         }
     }

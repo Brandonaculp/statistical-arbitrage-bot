@@ -66,7 +66,14 @@ yargs(hideBin(process.argv))
                 })
         },
         async (argv) => {
-            const { fresh, timeFrame, candlesLimit, zscoreWindow } = argv
+            const {
+                fresh,
+                timeFrame,
+                candlesLimit,
+                zscoreWindow,
+                tradeableCapital,
+                stopLoss,
+            } = argv
 
             const network = await select<Network>({
                 message: 'Select network',
@@ -113,10 +120,12 @@ yargs(hideBin(process.argv))
                 httpProvider,
                 timeFrame,
                 candlesLimit,
-                zscoreWindow
+                zscoreWindow,
+                tradeableCapital,
+                stopLoss
             )
 
-            await bot.docker.startAll({ fresh })
+            await bot.start()
         }
     )
     .option('verbose', {

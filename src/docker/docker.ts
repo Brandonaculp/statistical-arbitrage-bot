@@ -1,8 +1,6 @@
-import { exec } from 'child_process'
 import Dockerode, { Container, ContainerCreateOptions } from 'dockerode'
 import { dirname, resolve } from 'path'
 import { fileURLToPath } from 'url'
-import { promisify } from 'util'
 
 import { DockerError, RunOptions } from './types'
 
@@ -84,9 +82,6 @@ export class Docker {
         if (!state.State.Running) {
             await container.start()
         }
-
-        const execAsync = promisify(exec)
-        await execAsync('npx prisma db push --accept-data-loss')
 
         this.containers.push(container)
     }

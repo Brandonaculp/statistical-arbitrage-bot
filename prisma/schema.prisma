@@ -8,7 +8,7 @@ datasource db {
 }
 
 model User {
-  id              Int        @id @default(autoincrement())
+  id              Int           @id @default(autoincrement())
   username        String
   address         String
   privateKey      String
@@ -17,6 +17,7 @@ model User {
   apiKey          ApiKey?
   positions       Position[]
   positionId      String
+  ActiveOrder     ActiveOrder[]
 }
 
 enum Network {
@@ -34,14 +35,15 @@ model ApiKey {
 }
 
 model Market {
-  id         Int        @id @default(autoincrement())
-  name       String     @unique
-  indexPrice Float      @default(0)
-  orders     Order[]
-  candles    Candle[]
-  pairsA     Pair[]     @relation("MarketA")
-  pairsB     Pair[]     @relation("MarketB")
-  Position   Position[]
+  id           Int           @id @default(autoincrement())
+  name         String        @unique
+  indexPrice   Float         @default(0)
+  orders       Order[]
+  candles      Candle[]
+  pairsA       Pair[]        @relation("MarketA")
+  pairsB       Pair[]        @relation("MarketB")
+  positions    Position[]
+  activeOrders ActiveOrder[]
 }
 
 model Pair {
@@ -75,6 +77,45 @@ enum PositionSide {
   SHORT
 }
 
+model ActiveOrder {
+  id            String @id
+  size          Float
+  remainingSize Float
+  price         Float
+
+  type ActiveOrderType
+
+  status ActiveOrderStatus
+  side   ActiveOrderSide
+
+  market   Market @relation(fields: [marketId], references: [id])
+  marketId Int
+
+  user   User @relation(fields: [userId], references: [id])
+  userId Int
+}
+
+enum ActiveOrderType {
+  MARKET
+  LIMIT
+  STOP
+  TRAILING_STOP
+  TAKE_PROFIT
+  LIQUIDATED
+  LIQUIDATION
+}
+
+enum ActiveOrderStatus {
+  PENDING
+  OPEN
+  UNTRIGGERED
+}
+
+enum ActiveOrderSide {
+  BUY
+  SELL
+}
+
 model Candle {
   id    Int   @id @default(autoincrement())
   close Float
@@ -96,6 +137,11 @@ model Order {
   marketId Int
 }
 
+enum OrderSide {
+  BID
+  ASK
+}
+
 model Coint {
   id Int @id @default(autoincrement())
 
@@ -108,9 +154,4 @@ model Coint {
   criticalValue Float
   hedgeRatio    Float
   zeroCrossing  Float
-}
-
-enum OrderSide {
-  BID
-  ASK
 }

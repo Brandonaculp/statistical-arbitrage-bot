@@ -284,4 +284,26 @@ export class Trade {
 
         throw new Error('one or both of the bid and ask orders are empty')
     }
+
+    async getOpenPosition(market: Market) {
+        const positon = await this.prisma.position.findFirst({
+            where: {
+                marketId: market.id,
+                userId: this.dydx.user!.id,
+            },
+        })
+
+        return positon
+    }
+
+    async getActiveOrders(market: Market) {
+        const activeOrders = await this.prisma.activeOrder.findMany({
+            where: {
+                marketId: market.id,
+                userId: this.dydx.user!.id,
+            },
+        })
+
+        return activeOrders
+    }
 }

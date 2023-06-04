@@ -1,5 +1,7 @@
 import { CandleResolution } from '@dydxprotocol/v3-client'
 import { Network, PrismaClient } from '@prisma/client'
+import { exec } from 'child_process'
+import { promisify } from 'util'
 
 import { Docker } from './docker/docker'
 import { Dydx } from './dydx/dydx'
@@ -22,7 +24,9 @@ export class Bot {
         httpProvider: string,
         timeFrame: CandleResolution,
         candlesLimit: number,
-        zscoreWindow: number
+        zscoreWindow: number,
+        tradeableCapital: number,
+        stopLoss: number
     ) {
         this.docker = new Docker()
         this.prisma = new PrismaClient()
@@ -43,6 +47,24 @@ export class Bot {
             candlesLimit
         )
 
-        this.trade = new Trade(this.dydx, this.prisma)
+        this.trade = new Trade(
+            this.dydx,
+            this.prisma,
+            this.statistics,
+            tradeableCapital,
+            stopLoss
+        )
+    }
+
+    async start() {
+        await this.docker.startAll({ fresh: false })
+        await this.pushDB()
+        await this.marketData.sync()
+        await this.dydx.init()
+    }
+
+    async pushDB() {
+        const execAsync = promisify(exec)
+        await execAsync('npx prisma db push --accept-data-loss')
     }
 }

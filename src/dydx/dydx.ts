@@ -1,13 +1,11 @@
 import { ApiKeyCredentials, DydxClient, Market } from '@dydxprotocol/v3-client'
-import { RequestMethod } from '@dydxprotocol/v3-client/build/src/lib/axios'
 import { Separator, input, password, select } from '@inquirer/prompts'
 import { Network, PrismaClient, User } from '@prisma/client'
 import { Queue } from 'bullmq'
 import Web3 from 'web3'
-import WebSocket from 'ws'
 
-import { WebSocketMessage } from './types'
-import { DydxWorker } from './worker'
+import { DydxWorker } from '../worker/worker'
+import { WebSocket } from '../ws/ws'
 
 const NETWORK_ID = { [Network.MAINNET]: 1, [Network.TESTNET]: 5 }
 
@@ -15,8 +13,8 @@ export class Dydx {
     public readonly web3: Web3
     private readonly networkId: number
     public readonly client: DydxClient
-    public readonly ws: WebSocket
     public readonly queue: Queue
+    public ws?: WebSocket
     public worker?: DydxWorker
     public user?: User
     public apiKey?: ApiKeyCredentials
@@ -36,7 +34,6 @@ export class Dydx {
             web3: this.web3,
             networkId: this.networkId,
         })
-        this.ws = new WebSocket(wsHost)
 
         this.queue = new Queue('dydx-ws', {
             connection: {
@@ -91,8 +88,9 @@ export class Dydx {
             this.apiKey = apiKey
 
             this.client.apiKeyCredentials = this.apiKey
+
             // @ts-ignore
-            this.client.starkPrivateKey = keyPair.privateKey
+            this.client.starkPrivateKey = this.user.starkPrivateKey
         }
     }
 
@@ -163,59 +161,11 @@ export class Dydx {
             throw new Error('apiKey is not defined')
         }
 
-        const timestamp = new Date().toISOString()
-        const signature = this.client.private.sign({
-            requestPath: '/ws/accounts',
-            method: RequestMethod.GET,
-            isoTimestamp: timestamp,
-        })
-
-        const accountsMessage = {
-            type: 'subscribe',
-            channel: 'v3_accounts',
-            accountNumber: '0',
-            apiKey: this.apiKey.key,
-            signature,
-            timestamp,
-            passphrase: this.apiKey.passphrase,
-        }
-
-        const marketsMessage = {
-            type: 'subscribe',
-            channel: 'v3_markets',
-        }
-
-        this.ws.on('open', () => {
-            this.ws.send(JSON.stringify(marketsMessage))
-            this.ws.send(JSON.stringify(accountsMessage))
-            for (const market of Object.values(Market)) {
-                const orderbookMessage = {
-                    type: 'subscribe',
-                    channel: 'v3_orderbook',
-                    id: market,
-                    includeOffsets: true,
-                }
-                this.ws.send(JSON.stringify(orderbookMessage))
-            }
-        })
-
-        this.ws.on('message', async (rawData) => {
-            const data = JSON.parse(rawData.toString()) as WebSocketMessage
-
-            if (data.channel) {
-                this.queue.add(data.channel, data, {
-                    removeOnComplete: true,
-                    attempts: 2,
-                    backoff: {
-                        type: 'exponential',
-                        delay: 1000,
-                    },
-                })
-            }
-        })
-
-        this.ws.on('error', (error) => {
-            console.error(error)
-        })
+        this.ws = new WebSocket(
+            this.wsHost,
+            this.client,
+            this.apiKey,
+            this.queue
+        )
     }
 }
