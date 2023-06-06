@@ -4,8 +4,9 @@ import { Network, PrismaClient, User } from '@prisma/client'
 import { Queue } from 'bullmq'
 import Web3 from 'web3'
 
-import { DydxWorker } from '../worker/worker'
-import { WebSocket } from '../ws/ws'
+import { DydxWorker } from '../dydx-worker/dydx-worker'
+import { DydxWebSocket } from '../dydx-ws/dydx-ws'
+import { ConnectionConfig } from '../types'
 
 const NETWORK_ID = { [Network.MAINNET]: 1, [Network.TESTNET]: 5 }
 
@@ -14,22 +15,19 @@ export class Dydx {
     private readonly networkId: number
     public readonly client: DydxClient
     public readonly queue: Queue
-    public ws?: WebSocket
+    public ws?: DydxWebSocket
     public worker?: DydxWorker
     public user?: User
     public apiKey?: ApiKeyCredentials
 
     constructor(
-        public readonly network: Network,
-        public readonly httpHost: string,
-        public readonly wsHost: string,
-        public readonly httpProvider: string,
+        public readonly config: ConnectionConfig,
         public readonly prisma: PrismaClient
     ) {
-        this.web3 = new Web3(new Web3.providers.HttpProvider(httpProvider))
-        this.networkId = NETWORK_ID[network]
+        this.web3 = new Web3(new Web3.providers.HttpProvider(config.provider))
+        this.networkId = NETWORK_ID[config.network]
 
-        this.client = new DydxClient(httpHost, {
+        this.client = new DydxClient(config.httpHost, {
             // @ts-ignore
             web3: this.web3,
             networkId: this.networkId,
@@ -49,6 +47,19 @@ export class Dydx {
         this.initWorker()
     }
 
+    private initWebSocket() {
+        if (!this.apiKey) {
+            throw new Error('apiKey is not defined')
+        }
+
+        this.ws = new DydxWebSocket(
+            this.config.wsHost,
+            this.client,
+            this.apiKey,
+            this.queue
+        )
+    }
+
     private initWorker() {
         if (!this.user) {
             throw new Error('user is not initialized')
@@ -60,7 +71,7 @@ export class Dydx {
     private async initUser() {
         const users = await this.prisma.user.findMany({
             where: {
-                network: this.network,
+                network: this.config.network,
             },
         })
 
@@ -99,7 +110,7 @@ export class Dydx {
         const privateKey = await password({ message: 'Enter your private key' })
 
         const userExists = await this.prisma.user.findFirst({
-            where: { privateKey, network: this.network },
+            where: { privateKey, network: this.config.network },
         })
         if (userExists) {
             throw new Error(`user already exists: ${userExists.username}`)
@@ -142,7 +153,7 @@ export class Dydx {
                 privateKey,
                 starkPrivateKey: keyPair.privateKey,
                 positionId,
-                network: this.network,
+                network: this.config.network,
                 apiKey: {
                     create: {
                         key: apiKey.key,
@@ -154,18 +165,5 @@ export class Dydx {
         })
 
         return { user, apiKey }
-    }
-
-    private initWebSocket() {
-        if (!this.apiKey) {
-            throw new Error('apiKey is not defined')
-        }
-
-        this.ws = new WebSocket(
-            this.wsHost,
-            this.client,
-            this.apiKey,
-            this.queue
-        )
     }
 }

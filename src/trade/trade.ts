@@ -8,14 +8,14 @@ import { Market, Order, PrismaClient } from '@prisma/client'
 
 import { Dydx } from '../dydx/dydx'
 import { Statistics } from '../statistics/statistics'
+import { TradingConfig } from '../types'
 
 export class Trade {
     constructor(
         public readonly dydx: Dydx,
         public readonly prisma: PrismaClient,
         public readonly statistics: Statistics,
-        public readonly capital: number,
-        public readonly stopLossFailSafe: number
+        public readonly config: TradingConfig
     ) {}
 
     async placeOrder(
@@ -267,13 +267,13 @@ export class Trade {
 
             if (side === OrderSide.BUY) {
                 midPrice = nearestBid.price
-                stopLoss = midPrice * (1 - this.stopLossFailSafe)
+                stopLoss = midPrice * (1 - this.config.stopLoss)
             } else {
                 midPrice = nearestAsk.price
-                stopLoss = midPrice * (1 + this.stopLossFailSafe)
+                stopLoss = midPrice * (1 + this.config.stopLoss)
             }
 
-            const quantity = this.capital / midPrice
+            const quantity = this.config.tradeableCapital / midPrice
 
             return {
                 midPrice,

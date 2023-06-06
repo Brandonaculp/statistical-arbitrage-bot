@@ -1,18 +1,21 @@
-import { ApiKeyCredentials, DydxClient, Market } from '@dydxprotocol/v3-client'
+import { ApiKeyCredentials, DydxClient } from '@dydxprotocol/v3-client'
 import { RequestMethod } from '@dydxprotocol/v3-client/build/src/lib/axios'
+import { Market } from '@prisma/client'
 import { Queue } from 'bullmq'
-import WS from 'ws'
+import WebSocket from 'ws'
 
 import { WebSocketMessage } from './types'
 
-export class WebSocket {
+export class DydxWebSocket {
+    private ws: WebSocket
+
     constructor(
         wsHost: string,
         client: DydxClient,
         apiKey: ApiKeyCredentials,
         queue: Queue
     ) {
-        const ws = new WS(wsHost)
+        this.ws = new WebSocket(wsHost)
 
         const timestamp = new Date().toISOString()
         const signature = client.private.sign({
@@ -36,21 +39,12 @@ export class WebSocket {
             channel: 'v3_markets',
         }
 
-        ws.on('open', () => {
-            ws.send(JSON.stringify(marketsMessage))
-            ws.send(JSON.stringify(accountsMessage))
-            for (const market of Object.values(Market)) {
-                const orderbookMessage = {
-                    type: 'subscribe',
-                    channel: 'v3_orderbook',
-                    id: market,
-                    includeOffsets: true,
-                }
-                ws.send(JSON.stringify(orderbookMessage))
-            }
+        this.ws.on('open', () => {
+            this.ws.send(JSON.stringify(marketsMessage))
+            this.ws.send(JSON.stringify(accountsMessage))
         })
 
-        ws.on('message', async (rawData) => {
+        this.ws.on('message', async (rawData) => {
             const data = JSON.parse(rawData.toString()) as WebSocketMessage
 
             if (data.channel) {
@@ -65,8 +59,18 @@ export class WebSocket {
             }
         })
 
-        ws.on('error', (error) => {
+        this.ws.on('error', (error) => {
             console.error(error)
         })
+    }
+
+    subscribeOrderbook(market: Market) {
+        const orderbookMessage = {
+            type: 'subscribe',
+            channel: 'v3_orderbook',
+            id: market.name,
+            includeOffsets: true,
+        }
+        this.ws.send(JSON.stringify(orderbookMessage))
     }
 }

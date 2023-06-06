@@ -1,23 +1,23 @@
-import { CandleResolution, Market } from '@dydxprotocol/v3-client'
+import { Market } from '@dydxprotocol/v3-client'
 import { PrismaClient } from '@prisma/client'
 
 import { Dydx } from '../dydx/dydx'
 import { Statistics } from '../statistics/statistics'
+import { TradingConfig } from '../types'
 
 export class MarketData {
     constructor(
         public readonly dydx: Dydx,
         public readonly prisma: PrismaClient,
         public readonly statistics: Statistics,
-        public readonly timeFrame: CandleResolution,
-        public readonly candlesLimit: number
+        public readonly config: TradingConfig
     ) {}
 
     async sync() {
         await this.updateMarkets()
-        // await this.storePairs()
-        // await this.updateMarketsPrices()
-        // await this.updateCointegratedPairs()
+        await this.storePairs()
+        await this.updateMarketsPrices()
+        await this.updateCointegratedPairs()
     }
 
     async updateMarkets() {
@@ -62,11 +62,11 @@ export class MarketData {
         for (const market of markets) {
             const { candles } = await this.dydx.client.public.getCandles({
                 market: market.name as Market,
-                resolution: this.timeFrame,
-                limit: this.candlesLimit,
+                resolution: this.config.timeFrame,
+                limit: this.config.candlesLimit,
             })
 
-            if (candles.length === this.candlesLimit) {
+            if (candles.length === this.config.candlesLimit) {
                 await this.prisma.candle.deleteMany({
                     where: { marketId: market.id },
                 })

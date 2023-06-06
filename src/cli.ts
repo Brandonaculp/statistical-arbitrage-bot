@@ -6,7 +6,7 @@ import * as dotenv from 'dotenv'
 import yargs from 'yargs'
 import { hideBin } from 'yargs/helpers'
 
-import { Bot } from './bot'
+import { StatBot } from './stat-bot'
 
 dotenv.config()
 
@@ -73,6 +73,8 @@ yargs(hideBin(process.argv))
                 zscoreWindow,
                 tradeableCapital,
                 stopLoss,
+                triggerThresh,
+                limitOrder,
             } = argv
 
             const network = await select<Network>({
@@ -105,7 +107,7 @@ yargs(hideBin(process.argv))
                         : 'wss://api.stage.dydx.exchange/v3/ws',
             })
 
-            const httpProvider = await input({
+            const provider = await input({
                 message: 'Ethereum HTTP provider',
                 default:
                     network === Network.MAINNET
@@ -113,17 +115,24 @@ yargs(hideBin(process.argv))
                         : 'https://ethereum-goerli.publicnode.com',
             })
 
-            const bot = new Bot(
-                network,
-                httpHost,
-                wsHost,
-                httpProvider,
-                timeFrame,
-                candlesLimit,
-                zscoreWindow,
-                tradeableCapital,
-                stopLoss
-            )
+            const bot = new StatBot({
+                fresh,
+                connection: {
+                    httpHost,
+                    wsHost,
+                    network,
+                    provider,
+                },
+                trading: {
+                    timeFrame,
+                    candlesLimit,
+                    zscoreWindow,
+                    tradeableCapital,
+                    stopLoss,
+                    triggerThresh,
+                    limitOrder,
+                },
+            })
 
             await bot.start()
         }

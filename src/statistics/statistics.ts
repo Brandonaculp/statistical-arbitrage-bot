@@ -1,11 +1,12 @@
 import axios, { AxiosInstance } from 'axios'
 
+import { TradingConfig } from '../types'
 import { CointResult } from './types'
 
 export class Statistics {
     private readonly axiosInstance: AxiosInstance
 
-    constructor(public readonly zscoreWindow: number) {
+    constructor(public readonly config: TradingConfig) {
         this.axiosInstance = axios.create({
             baseURL: 'http://localhost:8000',
             headers: {
@@ -21,7 +22,7 @@ export class Statistics {
             {
                 series1,
                 series2,
-                window: this.zscoreWindow,
+                window: this.config.zscoreWindow,
             }
         )
 

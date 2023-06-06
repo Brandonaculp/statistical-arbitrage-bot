@@ -8,56 +8,39 @@ import { Dydx } from './dydx/dydx'
 import { MarketData } from './market-data/market-data'
 import { Statistics } from './statistics/statistics'
 import { Trade } from './trade/trade'
+import { StatBotConfig } from './types'
 
-export class Bot {
+export class StatBot {
     public readonly docker: Docker
     public readonly prisma: PrismaClient
-    public readonly dydx: Dydx
     public readonly statistics: Statistics
     public readonly marketData: MarketData
+    public readonly dydx: Dydx
     public readonly trade: Trade
 
-    constructor(
-        network: Network,
-        httpHost: string,
-        wsHost: string,
-        httpProvider: string,
-        timeFrame: CandleResolution,
-        candlesLimit: number,
-        zscoreWindow: number,
-        tradeableCapital: number,
-        stopLoss: number
-    ) {
+    constructor(public readonly config: StatBotConfig) {
         this.docker = new Docker()
         this.prisma = new PrismaClient()
-        this.dydx = new Dydx(
-            network,
-            httpHost,
-            wsHost,
-            httpProvider,
-            this.prisma
-        )
-        this.statistics = new Statistics(zscoreWindow)
+        this.dydx = new Dydx(config.connection, this.prisma)
+        this.statistics = new Statistics(config.trading)
 
         this.marketData = new MarketData(
             this.dydx,
             this.prisma,
             this.statistics,
-            timeFrame,
-            candlesLimit
+            config.trading
         )
 
         this.trade = new Trade(
             this.dydx,
             this.prisma,
             this.statistics,
-            tradeableCapital,
-            stopLoss
+            config.trading
         )
     }
 
     async start() {
-        await this.docker.startAll({ fresh: false })
+        await this.docker.startAll({ fresh: this.config.fresh })
         await this.pushDB()
         await this.marketData.sync()
         await this.dydx.init()

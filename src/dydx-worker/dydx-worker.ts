@@ -15,7 +15,7 @@ import {
 } from '@prisma/client'
 import { Worker } from 'bullmq'
 
-import { WebSocketMessage } from '../ws/types'
+import { WebSocketMessage } from '../dydx-ws/types'
 import {
     MarketsResponseObject,
     OrderbookChannelDataResponseObject,
@@ -23,11 +23,13 @@ import {
 } from './types'
 
 export class DydxWorker {
+    private worker: Worker<WebSocketMessage, any, WebSocketMessage['channel']>
+
     constructor(
         public readonly prisma: PrismaClient,
         public readonly user: User
     ) {
-        const worker = new Worker<
+        this.worker = new Worker<
             WebSocketMessage,
             any,
             WebSocketMessage['channel']
@@ -36,10 +38,10 @@ export class DydxWorker {
             async (job) => {
                 switch (job.name) {
                     case 'v3_markets':
-                        // await this.handleMarketsWSMessage(job.data)
+                        await this.handleMarketsWSMessage(job.data)
                         break
                     case 'v3_orderbook':
-                        // await this.handleOrderbookWSMessage(job.data)
+                        await this.handleOrderbookWSMessage(job.data)
                         break
                     case 'v3_accounts':
                         await this.handleAccountsWSMessage(job.data)
