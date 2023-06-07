@@ -134,6 +134,17 @@ yargs(hideBin(process.argv))
                 },
             })
 
+            process.on('SIGINT', async () => {
+                try {
+                    await bot.docker.stopAll()
+                } catch (error) {
+                    console.error(error)
+                }
+
+                process.exit()
+            })
+
+            await bot.init()
             await bot.start()
         }
     )

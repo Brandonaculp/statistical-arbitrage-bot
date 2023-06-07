@@ -138,4 +138,25 @@ export class MarketData {
             })
         }
     }
+
+    async findCointegratedPair() {
+        const coint = await this.prisma.coint.findFirstOrThrow({
+            where: {
+                cointFlag: true,
+            },
+            orderBy: {
+                zeroCrossing: 'desc',
+            },
+            include: {
+                pair: {
+                    include: {
+                        marketA: true,
+                        marketB: true,
+                    },
+                },
+            },
+        })
+
+        return { marketA: coint.pair.marketA, marketB: coint.pair.marketB }
+    }
 }
