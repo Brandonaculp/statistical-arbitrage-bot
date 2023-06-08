@@ -190,18 +190,17 @@ export class Trade {
     }
 
     async getMarketTradeLiquidity(market: Market) {
-        const { trades } = await this.dydx.client.public.getTrades({
-            market: market.name as DydxMarket,
+        const trades = await this.prisma.trade.findMany({
+            where: {
+                marketId: market.id,
+            },
         })
 
         if (trades.length === 0) {
             throw new Error('no trades')
         }
 
-        const sum = trades.reduce(
-            (acc, trade) => acc + parseFloat(trade.size),
-            0
-        )
+        const sum = trades.reduce((acc, trade) => acc + trade.size, 0)
         const avgSize = sum / trades.length
         //TODO: check whether the first item contains the latest price
         const latestPrice = trades[0].price
