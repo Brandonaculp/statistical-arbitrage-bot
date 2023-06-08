@@ -1,3 +1,4 @@
+import { OrderSide } from '@dydxprotocol/v3-client'
 import { PrismaClient } from '@prisma/client'
 import { exec } from 'child_process'
 import ora from 'ora'
@@ -114,7 +115,12 @@ export class StatBot {
             ].every((v) => !v)
 
             if (isManageNewTrades && this.state === BotState.ManageNewTrades) {
-                this.state = await this.manageNewTrades()
+                this.state = await this.trade.manageNewTrades(
+                    marketA,
+                    marketB,
+                    OrderSide.BUY,
+                    OrderSide.SELL
+                )
             }
 
             if (this.state === BotState.CloseTrades) {
@@ -132,9 +138,5 @@ export class StatBot {
     private async pushDB() {
         const execAsync = promisify(exec)
         await execAsync('npx prisma db push --accept-data-loss')
-    }
-
-    private async manageNewTrades() {
-        return BotState.ManageNewTrades
     }
 }

@@ -166,6 +166,29 @@ export class Trade {
         return BotState.ManageNewTrades
     }
 
+    async manageNewTrades(
+        marketA: Market,
+        marketB: Market,
+        sideA: OrderSide,
+        sideB: OrderSide
+    ) {
+        const { zscore, signalSignPositive } = await this.getLatestZscore(
+            marketA,
+            marketB,
+            sideA,
+            sideB
+        )
+
+        if (Math.abs(zscore) > this.config.triggerThresh) {
+            const { avgSize: avgSizeA, latestPrice: latestPriceA } =
+                await this.getMarketTradeLiquidity(marketA)
+            const { avgSize: avgSizeB, latestPrice: latestPriceB } =
+                await this.getMarketTradeLiquidity(marketB)
+        }
+
+        return BotState.ManageNewTrades
+    }
+
     async getMarketTradeLiquidity(market: Market) {
         const { trades } = await this.dydx.client.public.getTrades({
             market: market.name as DydxMarket,
@@ -179,34 +202,37 @@ export class Trade {
             (acc, trade) => acc + parseFloat(trade.size),
             0
         )
+        const avgSize = sum / trades.length
+        //TODO: check whether the first item contains the latest price
+        const latestPrice = trades[0].price
 
-        return sum / trades.length
+        return { avgSize, latestPrice }
     }
 
     async getLatestZscore(
-        market1: Market,
-        market2: Market,
-        side1: OrderSide,
-        side2: OrderSide
+        marketA: Market,
+        marketB: Market,
+        sideA: OrderSide,
+        sideB: OrderSide
     ) {
-        const orders1 = await this.prisma.order.findMany({
+        const ordersA = await this.prisma.order.findMany({
             where: {
-                marketId: market1.id,
+                marketId: marketA.id,
             },
         })
-        const orders2 = await this.prisma.order.findMany({
+        const ordersB = await this.prisma.order.findMany({
             where: {
-                marketId: market2.id,
+                marketId: marketB.id,
             },
         })
 
-        const { midPrice: midPrice1 } = this.getTradeDetails(orders1, side1)
-        const { midPrice: midPrice2 } = this.getTradeDetails(orders2, side2)
+        const { midPrice: midPriceA } = this.getTradeDetails(ordersA, sideA)
+        const { midPrice: midPriceB } = this.getTradeDetails(ordersB, sideB)
 
-        const series1 = (
+        const seriesA = (
             await this.prisma.candle.findMany({
                 where: {
-                    marketId: market1.id,
+                    marketId: marketA.id,
                 },
                 select: {
                     close: true,
@@ -216,10 +242,10 @@ export class Trade {
                 },
             })
         ).map((candle) => candle.close)
-        const series2 = (
+        const seriesB = (
             await this.prisma.candle.findMany({
                 where: {
-                    marketId: market2.id,
+                    marketId: marketB.id,
                 },
                 select: {
                     close: true,
@@ -230,19 +256,19 @@ export class Trade {
             })
         ).map((candle) => candle.close)
 
-        if (series1.length === 0 || series2.length === 0) {
+        if (seriesA.length === 0 || seriesB.length === 0) {
             throw new Error('one or both of the series are empty')
         }
 
-        series1.pop()
-        series2.pop()
+        seriesA.pop()
+        seriesB.pop()
 
-        series1.push(midPrice1)
-        series2.push(midPrice2)
+        seriesA.push(midPriceA)
+        seriesB.push(midPriceB)
 
         const { zscoreList } = await this.statistics.calculateCoint(
-            series1,
-            series2
+            seriesA,
+            seriesB
         )
 
         const zscore = zscoreList[zscoreList.length - 1]
