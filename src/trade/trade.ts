@@ -306,4 +306,21 @@ export class Trade {
 
         return activeOrders
     }
+
+    async getTradableCapital() {
+        const { quoteBalance } = await this.prisma.account.findFirstOrThrow({
+            where: {
+                id: this.dydx.account!.id,
+            },
+            select: {
+                quoteBalance: true,
+            },
+        })
+
+        if (!quoteBalance) return 0
+
+        return quoteBalance > this.config.tradableCapital
+            ? this.config.tradableCapital
+            : quoteBalance
+    }
 }
