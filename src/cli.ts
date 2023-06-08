@@ -145,7 +145,15 @@ yargs(hideBin(process.argv))
             })
 
             await bot.init()
-            await bot.start()
+
+            const market = await bot.prisma.market.findFirstOrThrow({
+                where: {
+                    name: 'ETH-USD',
+                },
+            })
+
+            bot.dydx.ws!.subscribeTrades([market])
+            // await bot.start()
         }
     )
     .option('verbose', {

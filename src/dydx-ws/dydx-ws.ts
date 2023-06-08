@@ -64,13 +64,42 @@ export class DydxWebSocket {
         })
     }
 
-    subscribeOrderbook(market: Market) {
-        const orderbookMessage = {
-            type: 'subscribe',
-            channel: 'v3_orderbook',
-            id: market.name,
-            includeOffsets: true,
+    subscribeOrderbook(markets: Market[]) {
+        const sendOrderbookSubscription = () => {
+            for (const market of markets) {
+                const orderbookMessage = {
+                    type: 'subscribe',
+                    channel: 'v3_orderbook',
+                    id: market.name,
+                    includeOffsets: true,
+                }
+                this.ws.send(JSON.stringify(orderbookMessage))
+            }
         }
-        this.ws.send(JSON.stringify(orderbookMessage))
+
+        if (this.ws.readyState === WebSocket.OPEN) {
+            sendOrderbookSubscription()
+        } else {
+            this.ws.on('open', sendOrderbookSubscription)
+        }
+    }
+
+    subscribeTrades(markets: Market[]) {
+        const sendTradesSubscription = () => {
+            for (const market of markets) {
+                const tradesMessage = {
+                    type: 'subscribe',
+                    channel: 'v3_trades',
+                    id: market.name,
+                }
+                this.ws.send(JSON.stringify(tradesMessage))
+            }
+        }
+
+        if (this.ws.readyState === WebSocket.OPEN) {
+            sendTradesSubscription()
+        } else {
+            this.ws.on('open', sendTradesSubscription)
+        }
     }
 }

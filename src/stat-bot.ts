@@ -101,7 +101,13 @@ export class StatBot {
         const { marketA, marketB } =
             await this.marketData.findCointegratedPair()
 
+        this.dydx.ws!.subscribeOrderbook([marketA, marketB])
+        this.dydx.ws!.subscribeTrades([marketA, marketB])
+
         while (true) {
+            // sleep for 3 seconds
+            await new Promise((resolve) => setTimeout(resolve, 3000))
+
             const positionA = await this.trade.getOpenPosition(marketA)
             const positionB = await this.trade.getOpenPosition(marketB)
             const activeOrdersA = await this.trade.getActiveOrders(marketA)
@@ -129,9 +135,6 @@ export class StatBot {
                     marketB,
                 ])
             }
-
-            // sleep for 3 seconds
-            await new Promise((resolve) => setTimeout(resolve, 3000))
         }
     }
 

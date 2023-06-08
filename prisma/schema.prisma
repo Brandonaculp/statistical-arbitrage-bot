@@ -45,6 +45,7 @@ model Market {
   pairsB       Pair[]        @relation("MarketB")
   positions    Position[]
   activeOrders ActiveOrder[]
+  Trade        Trade[]
 }
 
 model Pair {
@@ -141,6 +142,24 @@ model Order {
 enum OrderSide {
   BID
   ASK
+}
+
+model Trade {
+  id Int @id @default(autoincrement())
+
+  side  TradeSide
+  size  Float
+  price Float
+
+  market   Market @relation(fields: [marketId], references: [id])
+  marketId Int
+
+  createdAt DateTime
+}
+
+enum TradeSide {
+  BUY
+  SELL
 }
 
 model Coint {

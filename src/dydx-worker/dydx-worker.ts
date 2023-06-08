@@ -4,6 +4,7 @@ import {
     OrderStatus,
     PositionResponseObject,
     PositionStatus,
+    Trade,
 } from '@dydxprotocol/v3-client'
 import {
     Account,
@@ -12,8 +13,10 @@ import {
     ActiveOrderType,
     PositionSide,
     PrismaClient,
+    TradeSide,
 } from '@prisma/client'
 import { Worker } from 'bullmq'
+import util from 'util'
 
 import { WebSocketMessage } from '../dydx-ws/types'
 import {
@@ -46,6 +49,8 @@ export class DydxWorker {
                     case 'v3_accounts':
                         await this.handleAccountsWSMessage(job.data)
                         break
+                    case 'v3_trades':
+                        await this.handleTradesWSMessage(job.data)
                 }
             },
             {
@@ -363,6 +368,67 @@ export class DydxWorker {
                     })
                 }
             }
+        }
+    }
+
+    private async handleTradesWSMessage(data: WebSocketMessage) {
+        const MAX_SIZE = 100
+
+        const { trades } = data.contents as {
+            trades: Trade[]
+        }
+
+        const market = await this.prisma.market.findFirst({
+            where: { name: data.id },
+        })
+
+        if (!market) return
+
+        if (data.type === 'subscribed') {
+            await this.prisma.trade.deleteMany({
+                where: {
+                    marketId: market.id,
+                },
+            })
+        }
+
+        await this.prisma.trade.createMany({
+            data: trades.slice(0, MAX_SIZE).map((trade) => ({
+                side: trade.side as TradeSide,
+                size: parseFloat(trade.size),
+                price: parseFloat(trade.price),
+                marketId: market.id,
+                createdAt: trade.createdAt,
+            })),
+        })
+
+        const rowCount = await this.prisma.trade.count({
+            where: { marketId: market.id },
+        })
+
+        if (rowCount > MAX_SIZE) {
+            const rowsToDelete = rowCount - MAX_SIZE
+
+            const oldRows = await this.prisma.trade.findMany({
+                take: rowsToDelete,
+                where: {
+                    marketId: market.id,
+                },
+                orderBy: {
+                    createdAt: 'asc',
+                },
+                select: {
+                    id: true,
+                },
+            })
+
+            await this.prisma.trade.deleteMany({
+                where: {
+                    id: {
+                        in: oldRows.map((row) => row.id),
+                    },
+                },
+            })
         }
     }
 }
