@@ -1,6 +1,6 @@
 import { ApiKeyCredentials, DydxClient, Market } from '@dydxprotocol/v3-client'
 import { Separator, input, password, select } from '@inquirer/prompts'
-import { Network, PrismaClient, User } from '@prisma/client'
+import { Account, Network, PrismaClient } from '@prisma/client'
 import { Queue } from 'bullmq'
 import Web3 from 'web3'
 
@@ -17,7 +17,7 @@ export class Dydx {
     public readonly queue: Queue
     public ws?: DydxWebSocket
     public worker?: DydxWorker
-    public user?: User
+    public account?: Account
     public apiKey?: ApiKeyCredentials
 
     constructor(
@@ -42,7 +42,7 @@ export class Dydx {
     }
 
     public async init() {
-        await this.initUser()
+        await this.initAccount()
         this.initWebSocket()
         this.initWorker()
     }
@@ -61,39 +61,42 @@ export class Dydx {
     }
 
     private initWorker() {
-        if (!this.user) {
-            throw new Error('user is not initialized')
+        if (!this.account) {
+            throw new Error('account is not initialized')
         }
 
-        this.worker = new DydxWorker(this.prisma, this.user)
+        this.worker = new DydxWorker(this.prisma, this.account)
     }
 
-    private async initUser() {
-        const users = await this.prisma.user.findMany({
+    private async initAccount() {
+        const accounts = await this.prisma.account.findMany({
             where: {
                 network: this.config.network,
             },
         })
 
-        let selectedUser = await select<User | string>({
-            message: 'Select user',
+        let selectedAccount = await select<Account | string>({
+            message: 'Select account',
             choices: [
-                ...users.map((user) => ({ name: user.username, value: user })),
+                ...accounts.map((account) => ({
+                    name: account.name,
+                    value: account,
+                })),
                 new Separator(),
-                { name: 'Create new user', value: 'create new user' },
+                { name: 'Create new account', value: 'create new account' },
             ],
         })
 
-        if (typeof selectedUser === 'string') {
-            const { user, apiKey } = await this.createUser()
-            this.user = user
+        if (typeof selectedAccount === 'string') {
+            const { account, apiKey } = await this.createAccount()
+            this.account = account
             this.apiKey = apiKey
         } else {
-            this.user = selectedUser
+            this.account = selectedAccount
 
             const apiKey = await this.prisma.apiKey.findFirstOrThrow({
                 where: {
-                    userId: this.user.id,
+                    accountId: this.account.id,
                 },
             })
             this.apiKey = apiKey
@@ -101,19 +104,19 @@ export class Dydx {
             this.client.apiKeyCredentials = this.apiKey
 
             // @ts-ignore
-            this.client.starkPrivateKey = this.user.starkPrivateKey
+            this.client.starkPrivateKey = this.account.starkPrivateKey
         }
     }
 
-    private async createUser() {
-        const username = await input({ message: 'Enter username' })
+    private async createAccount() {
+        const name = await input({ message: 'Enter name' })
         const privateKey = await password({ message: 'Enter your private key' })
 
-        const userExists = await this.prisma.user.findFirst({
+        const accountExists = await this.prisma.account.findFirst({
             where: { privateKey, network: this.config.network },
         })
-        if (userExists) {
-            throw new Error(`user already exists: ${userExists.username}`)
+        if (accountExists) {
+            throw new Error(`account already exists: ${accountExists.name}`)
         }
 
         this.web3.eth.accounts.wallet.add(privateKey)
@@ -143,12 +146,13 @@ export class Dydx {
         this.client.starkPrivateKey = keyPair.privateKey
 
         const {
-            account: { positionId },
+            account: { positionId, id },
         } = await this.client.private.getAccount(address)
 
-        const user = await this.prisma.user.create({
+        const account = await this.prisma.account.create({
             data: {
-                username,
+                id,
+                name,
                 address,
                 privateKey,
                 starkPrivateKey: keyPair.privateKey,
@@ -164,6 +168,6 @@ export class Dydx {
             },
         })
 
-        return { user, apiKey }
+        return { account, apiKey }
     }
 }

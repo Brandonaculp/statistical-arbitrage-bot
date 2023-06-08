@@ -45,7 +45,7 @@ export class Trade {
                     ).toISOString(),
                     reduceOnly: false,
                 },
-                this.dydx.user!.positionId
+                this.dydx.account!.positionId
             )
         } else {
             await this.dydx.client.private.createOrder(
@@ -63,7 +63,7 @@ export class Trade {
                     ).toISOString(),
                     reduceOnly: false,
                 },
-                this.dydx.user!.positionId
+                this.dydx.account!.positionId
             )
 
             await this.dydx.client.private.createOrder(
@@ -85,7 +85,7 @@ export class Trade {
                     ).toISOString(),
                     reduceOnly: true,
                 },
-                this.dydx.user!.positionId
+                this.dydx.account!.positionId
             )
         }
     }
@@ -137,7 +137,7 @@ export class Trade {
                 ).toISOString(),
                 reduceOnly: true,
             },
-            this.dydx.user!.positionId
+            this.dydx.account!.positionId
         )
     }
 
@@ -150,7 +150,7 @@ export class Trade {
             const position = await this.prisma.position.findFirst({
                 where: {
                     marketId: market.id,
-                    userId: this.dydx.user!.id,
+                    accountId: this.dydx.account!.id,
                 },
             })
 
@@ -273,7 +273,7 @@ export class Trade {
                 stopLoss = midPrice * (1 + this.config.stopLoss)
             }
 
-            const quantity = this.config.tradeableCapital / midPrice
+            const quantity = this.config.tradableCapital / midPrice
 
             return {
                 midPrice,
@@ -289,7 +289,7 @@ export class Trade {
         const positon = await this.prisma.position.findFirst({
             where: {
                 marketId: market.id,
-                userId: this.dydx.user!.id,
+                accountId: this.dydx.account!.id,
             },
         })
 
@@ -300,7 +300,7 @@ export class Trade {
         const activeOrders = await this.prisma.activeOrder.findMany({
             where: {
                 marketId: market.id,
-                userId: this.dydx.user!.id,
+                accountId: this.dydx.account!.id,
             },
         })
 

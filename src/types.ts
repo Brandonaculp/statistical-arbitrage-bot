@@ -12,7 +12,7 @@ export interface TradingConfig {
     candlesLimit: number
     zscoreWindow: number
     timeFrame: CandleResolution
-    tradeableCapital: number
+    tradableCapital: number
     stopLoss: number
     triggerThresh: number
     limitOrder: boolean

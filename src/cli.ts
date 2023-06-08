@@ -44,9 +44,9 @@ yargs(hideBin(process.argv))
                     choices: Object.values(CandleResolution),
                     default: CandleResolution.ONE_HOUR,
                 })
-                .positional('tradeable-capital', {
+                .positional('tradable-capital', {
                     type: 'number',
-                    description: 'Tradeable Capital',
+                    description: 'Tradable Capital',
                     default: 100,
                 })
                 .positional('stop-loss', {
@@ -71,7 +71,7 @@ yargs(hideBin(process.argv))
                 timeFrame,
                 candlesLimit,
                 zscoreWindow,
-                tradeableCapital,
+                tradableCapital,
                 stopLoss,
                 triggerThresh,
                 limitOrder,
@@ -127,7 +127,7 @@ yargs(hideBin(process.argv))
                     timeFrame,
                     candlesLimit,
                     zscoreWindow,
-                    tradeableCapital,
+                    tradableCapital,
                     stopLoss,
                     triggerThresh,
                     limitOrder,

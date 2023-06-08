@@ -6,12 +6,12 @@ import {
     PositionStatus,
 } from '@dydxprotocol/v3-client'
 import {
+    Account,
     ActiveOrderSide,
     ActiveOrderStatus,
     ActiveOrderType,
     PositionSide,
     PrismaClient,
-    User,
 } from '@prisma/client'
 import { Worker } from 'bullmq'
 
@@ -27,7 +27,7 @@ export class DydxWorker {
 
     constructor(
         public readonly prisma: PrismaClient,
-        public readonly user: User
+        public readonly account: Account
     ) {
         this.worker = new Worker<
             WebSocketMessage,
@@ -203,12 +203,12 @@ export class DydxWorker {
     private async handleAccountsWSMessage(data: WebSocketMessage) {
         if (data.type === 'subscribed') {
             await this.prisma.position.deleteMany({
-                where: { userId: this.user.id },
+                where: { accountId: this.account.id },
             })
 
             await this.prisma.activeOrder.deleteMany({
                 where: {
-                    userId: this.user.id,
+                    accountId: this.account.id,
                 },
             })
 
@@ -238,11 +238,20 @@ export class DydxWorker {
                         side: order.side as ActiveOrderSide,
                         status: order.status as ActiveOrderStatus,
                         type: order.type as ActiveOrderType,
-                        userId: this.user.id,
+                        accountId: this.account.id,
                         marketId: market.id,
                     },
                 })
             }
+
+            await this.prisma.account.update({
+                where: {
+                    id: account.id,
+                },
+                data: {
+                    quoteBalance: parseFloat(account.quoteBalance),
+                },
+            })
 
             for (const [marketName, position] of Object.entries(
                 account.openPositions
@@ -255,7 +264,7 @@ export class DydxWorker {
                     data: {
                         size: parseFloat(position.size),
                         side: position.side as PositionSide,
-                        userId: this.user.id,
+                        accountId: this.account.id,
                         marketId: market.id,
                     },
                 })
@@ -264,9 +273,21 @@ export class DydxWorker {
             return
         }
 
-        const { positions, orders } = data.contents as {
+        const { positions, orders, accounts } = data.contents as {
             positions?: PositionResponseObject[]
             orders?: OrderResponseObject[]
+            accounts?: AccountResponseObject[]
+        }
+
+        if (accounts) {
+            await this.prisma.account.update({
+                where: {
+                    id: accounts[0].id,
+                },
+                data: {
+                    quoteBalance: parseFloat(accounts[0].quoteBalance),
+                },
+            })
         }
 
         if (orders) {
@@ -298,7 +319,7 @@ export class DydxWorker {
                         side: order.side as ActiveOrderSide,
                         status: order.status as ActiveOrderStatus,
                         type: order.type as ActiveOrderType,
-                        userId: this.user.id,
+                        accountId: this.account.id,
                         marketId: market.id,
                     },
                     update: {
@@ -333,7 +354,7 @@ export class DydxWorker {
                         create: {
                             size,
                             side: position.side as PositionSide,
-                            userId: this.user.id,
+                            accountId: this.account.id,
                             marketId: market.id,
                         },
                         update: {
