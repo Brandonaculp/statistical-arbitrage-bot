@@ -8,7 +8,7 @@ import { Market, Order, PrismaClient } from '@prisma/client'
 
 import { Dydx } from '../dydx/dydx'
 import { Statistics } from '../statistics/statistics'
-import { TradingConfig } from '../types'
+import { BotState, TradingConfig } from '../types'
 
 export class Trade {
     constructor(
@@ -162,6 +162,8 @@ export class Trade {
                 )
             }
         }
+
+        return BotState.ManageNewTrades
     }
 
     async getMarketTradeLiquidity(market: Market) {

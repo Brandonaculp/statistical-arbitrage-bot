@@ -23,3 +23,8 @@ export interface StatBotConfig {
     connection: ConnectionConfig
     trading: TradingConfig
 }
+
+export enum BotState {
+    ManageNewTrades,
+    CloseTrades,
+}

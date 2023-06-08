@@ -8,7 +8,7 @@ import { Dydx } from './dydx/dydx'
 import { MarketData } from './market-data/market-data'
 import { Statistics } from './statistics/statistics'
 import { Trade } from './trade/trade'
-import { StatBotConfig } from './types'
+import { BotState, StatBotConfig } from './types'
 
 export class StatBot {
     public readonly docker: Docker
@@ -17,6 +17,7 @@ export class StatBot {
     public readonly marketData: MarketData
     public readonly dydx: Dydx
     public readonly trade: Trade
+    private state: BotState = BotState.ManageNewTrades
 
     constructor(public readonly config: StatBotConfig) {
         this.docker = new Docker()
@@ -94,14 +95,46 @@ export class StatBot {
     }
 
     async start() {
+        this.state = BotState.ManageNewTrades
+
         const { marketA, marketB } =
             await this.marketData.findCointegratedPair()
 
-        console.log({ marketA: marketA.name, marketB: marketB.name })
+        while (true) {
+            const positionA = await this.trade.getOpenPosition(marketA)
+            const positionB = await this.trade.getOpenPosition(marketB)
+            const activeOrdersA = await this.trade.getActiveOrders(marketA)
+            const activeOrdersB = await this.trade.getActiveOrders(marketB)
+
+            const isManageNewTrades = [
+                !!positionA,
+                !!positionB,
+                activeOrdersA.length > 0,
+                activeOrdersB.length > 0,
+            ].every((v) => !v)
+
+            if (isManageNewTrades && this.state === BotState.ManageNewTrades) {
+                this.state = await this.manageNewTrades()
+            }
+
+            if (this.state === BotState.CloseTrades) {
+                this.state = await this.trade.closeAllPositions([
+                    marketA,
+                    marketB,
+                ])
+            }
+
+            // sleep for 3 seconds
+            await new Promise((resolve) => setTimeout(resolve, 3000))
+        }
     }
 
     private async pushDB() {
         const execAsync = promisify(exec)
         await execAsync('npx prisma db push --accept-data-loss')
+    }
+
+    private async manageNewTrades() {
+        return BotState.ManageNewTrades
     }
 }
