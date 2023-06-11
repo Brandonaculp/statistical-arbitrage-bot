@@ -1,5 +1,6 @@
 import { OrderSide } from '@dydxprotocol/v3-client'
-import { PrismaClient } from '@prisma/client'
+import { input, select } from '@inquirer/prompts'
+import { Network, PrismaClient } from '@prisma/client'
 import { exec } from 'child_process'
 import ora from 'ora'
 import { promisify } from 'util'
@@ -9,7 +10,8 @@ import { Dydx } from './dydx/dydx'
 import { MarketData } from './market-data/market-data'
 import { Statistics } from './statistics/statistics'
 import { Trade } from './trade/trade'
-import { BotState, StatBotConfig } from './types'
+import { BotState, StatBotConfig, TradingConfig } from './types'
+import { sleep } from './utils'
 
 export class StatBot {
     public readonly docker: Docker
@@ -105,8 +107,7 @@ export class StatBot {
         this.dydx.ws!.subscribeTrades([marketA, marketB])
 
         while (true) {
-            // sleep for 3 seconds
-            await new Promise((resolve) => setTimeout(resolve, 3000))
+            await sleep(3000)
 
             const positionA = await this.trade.getOpenPosition(marketA)
             const positionB = await this.trade.getOpenPosition(marketB)
@@ -136,6 +137,78 @@ export class StatBot {
                 ])
             }
         }
+    }
+
+    static async newStatBot(
+        {
+            timeFrame,
+            candlesLimit,
+            zscoreWindow,
+            tradableCapital,
+            stopLoss,
+            triggerThresh,
+            limitOrder,
+        }: TradingConfig,
+        fresh = false
+    ) {
+        const network = await select<Network>({
+            message: 'Select network',
+            choices: [
+                {
+                    name: 'Mainnet',
+                    value: Network.MAINNET,
+                },
+                {
+                    name: 'Testnet',
+                    value: Network.TESTNET,
+                },
+            ],
+        })
+
+        const httpHost = await input({
+            message: 'Dydx HTTP API',
+            default:
+                network === Network.MAINNET
+                    ? 'https://api.dydx.exchange'
+                    : 'https://api.stage.dydx.exchange',
+        })
+
+        const wsHost = await input({
+            message: 'Dydx Websocket API',
+            default:
+                network === Network.MAINNET
+                    ? 'wss://api.dydx.exchange/v3/ws'
+                    : 'wss://api.stage.dydx.exchange/v3/ws',
+        })
+
+        const provider = await input({
+            message: 'Ethereum HTTP provider',
+            default:
+                network === Network.MAINNET
+                    ? 'https://ethereum.publicnode.com'
+                    : 'https://ethereum-goerli.publicnode.com',
+        })
+
+        const bot = new StatBot({
+            connection: {
+                httpHost,
+                wsHost,
+                network,
+                provider,
+            },
+            trading: {
+                timeFrame,
+                candlesLimit,
+                zscoreWindow,
+                tradableCapital,
+                stopLoss,
+                triggerThresh,
+                limitOrder,
+            },
+            fresh,
+        })
+
+        return bot
     }
 
     private async pushDB() {

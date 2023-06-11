@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 import { CandleResolution } from '@dydxprotocol/v3-client'
-import { input, select } from '@inquirer/prompts'
-import { Network } from '@prisma/client'
 import * as dotenv from 'dotenv'
 import yargs from 'yargs'
 import { hideBin } from 'yargs/helpers'
@@ -12,8 +10,8 @@ dotenv.config()
 
 yargs(hideBin(process.argv))
     .command(
-        'start',
-        'start the bot',
+        'trade',
+        'run trading bot',
         (yargs) => {
             return yargs
                 .positional('fresh', {
@@ -77,53 +75,8 @@ yargs(hideBin(process.argv))
                 limitOrder,
             } = argv
 
-            const network = await select<Network>({
-                message: 'Select network',
-                choices: [
-                    {
-                        name: 'Mainnet',
-                        value: Network.MAINNET,
-                    },
-                    {
-                        name: 'Testnet',
-                        value: Network.TESTNET,
-                    },
-                ],
-            })
-
-            const httpHost = await input({
-                message: 'Dydx HTTP API',
-                default:
-                    network === Network.MAINNET
-                        ? 'https://api.dydx.exchange'
-                        : 'https://api.stage.dydx.exchange',
-            })
-
-            const wsHost = await input({
-                message: 'Dydx Websocket API',
-                default:
-                    network === Network.MAINNET
-                        ? 'wss://api.dydx.exchange/v3/ws'
-                        : 'wss://api.stage.dydx.exchange/v3/ws',
-            })
-
-            const provider = await input({
-                message: 'Ethereum HTTP provider',
-                default:
-                    network === Network.MAINNET
-                        ? 'https://ethereum.publicnode.com'
-                        : 'https://ethereum-goerli.publicnode.com',
-            })
-
-            const bot = new StatBot({
-                fresh,
-                connection: {
-                    httpHost,
-                    wsHost,
-                    network,
-                    provider,
-                },
-                trading: {
+            const bot = await StatBot.newStatBot(
+                {
                     timeFrame,
                     candlesLimit,
                     zscoreWindow,
@@ -132,7 +85,8 @@ yargs(hideBin(process.argv))
                     triggerThresh,
                     limitOrder,
                 },
-            })
+                fresh
+            )
 
             process.on('SIGINT', async () => {
                 try {
