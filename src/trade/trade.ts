@@ -180,10 +180,60 @@ export class Trade {
         )
 
         if (Math.abs(zscore) > this.config.triggerThresh) {
-            const { avgSize: avgSizeA, latestPrice: latestPriceA } =
-                await this.getMarketTradeLiquidity(marketA)
-            const { avgSize: avgSizeB, latestPrice: latestPriceB } =
-                await this.getMarketTradeLiquidity(marketB)
+            //TODO: what is signalPositiveMarket and signalNegativeMarket
+            const signalPositiveMarket = marketA
+            const signalNegativeMarket = marketB
+
+            const { avgSize: avgSizeP, latestPrice: latestPriceP } =
+                await this.getMarketTradeLiquidity(signalPositiveMarket)
+            const { avgSize: avgSizeN, latestPrice: latestPriceN } =
+                await this.getMarketTradeLiquidity(signalNegativeMarket)
+
+            let longMarket: Market
+            let shortMarket: Market
+            let avgSizeLong: number
+            let avgSizeShort: number
+            let latestPriceLong: number
+            let latestPriceShort: number
+
+            if (signalSignPositive) {
+                longMarket = signalPositiveMarket
+                shortMarket = signalNegativeMarket
+                avgSizeLong = avgSizeP
+                avgSizeShort = avgSizeN
+                latestPriceLong = latestPriceP
+                latestPriceShort = latestPriceN
+            } else {
+                longMarket = signalNegativeMarket
+                shortMarket = signalPositiveMarket
+                avgSizeLong = avgSizeN
+                avgSizeShort = avgSizeP
+                latestPriceLong = latestPriceN
+                latestPriceShort = latestPriceP
+            }
+
+            const tradableCapital = await this.getTradableCapital()
+            const capitalLong = tradableCapital * 0.5
+            const capitalShort = tradableCapital - capitalLong
+            const initialFillTargetLongUsd = avgSizeLong * latestPriceLong
+            const initialFillTargetShortUsd = avgSizeShort * latestPriceShort
+            const initialCapitalInjectionUsd = Math.min(
+                initialFillTargetLongUsd,
+                initialFillTargetShortUsd
+            )
+
+            let initialCapitalUsd: number
+            if (this.config.limitOrder) {
+                initialCapitalUsd =
+                    initialCapitalInjectionUsd > capitalLong
+                        ? capitalLong
+                        : initialCapitalInjectionUsd
+            } else {
+                initialCapitalUsd = capitalLong
+            }
+
+            const remainingCapitalLong = capitalLong
+            const remainingCapitalShort = capitalShort
         }
 
         return BotState.ManageNewTrades

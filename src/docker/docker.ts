@@ -66,7 +66,7 @@ export class Docker {
             Env: [
                 'POSTGRES_USER=postgres',
                 'POSTGRES_PASSWORD=postgres',
-                'POSTGRES_DB=mydb',
+                'POSTGRES_DB=statbot',
             ],
             name: containerName,
             HostConfig: {
