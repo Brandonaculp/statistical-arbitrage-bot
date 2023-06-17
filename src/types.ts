@@ -16,17 +16,17 @@ export interface TradingConfig {
     stopLoss: number
     triggerThresh: number
     limitOrder?: boolean
-    from?: number
-    to?: number
+}
+
+export interface BacktestConfig {
+    from: number
+    to: number
+    slippage: number
 }
 
 export interface StatBotConfig {
     fresh: boolean
     connection: ConnectionConfig
     trading: TradingConfig
-}
-
-export enum BotState {
-    ManageNewTrades,
-    CloseTrades,
+    backtest?: BacktestConfig
 }

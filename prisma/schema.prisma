@@ -125,7 +125,7 @@ model Candle {
   market   Market @relation(fields: [marketId], references: [id], onDelete: Cascade)
   marketId Int
 
-  createdAt DateTime @default(now())
+  createdAt DateTime
 }
 
 model Order {
@@ -174,4 +174,14 @@ model Coint {
   criticalValue Float
   hedgeRatio    Float
   zeroCrossing  Float
+}
+
+model BacktestData {
+  id Int @id @default(autoincrement())
+
+  marketAPrice Float
+  marketBPrice Float
+
+  zscore     Float
+  zscoreSign Int
 }

@@ -4,19 +4,62 @@ import {
     OrderType,
     TimeInForce,
 } from '@dydxprotocol/v3-client'
+import { select } from '@inquirer/prompts'
 import { Market, Order, PrismaClient } from '@prisma/client'
 
 import { Dydx } from '../dydx/dydx'
 import { Statistics } from '../statistics/statistics'
-import { BotState, TradingConfig } from '../types'
+import { TradingConfig } from '../types'
+import { sleep } from '../utils'
+import { TradeState } from './types'
 
 export class Trade {
+    public state: TradeState = TradeState.ManageNewTrades
+
     constructor(
         public readonly dydx: Dydx,
         public readonly prisma: PrismaClient,
         public readonly statistics: Statistics,
         public readonly config: TradingConfig
     ) {}
+
+    async start() {
+        this.state = TradeState.ManageNewTrades
+        const { positiveMarket, negativeMarket } = await this.selectMarkets()
+
+        this.dydx.ws!.subscribeOrderbook(positiveMarket, negativeMarket)
+        this.dydx.ws!.subscribeTrades(positiveMarket, negativeMarket)
+        while (true) {
+            await sleep(3000)
+            const positionA = await this.getOpenPosition(positiveMarket)
+            const positionB = await this.getOpenPosition(negativeMarket)
+            const activeOrdersA = await this.getActiveOrders(positiveMarket)
+            const activeOrdersB = await this.getActiveOrders(negativeMarket)
+            const isManageNewTrades = [
+                !!positionA,
+                !!positionB,
+                activeOrdersA.length > 0,
+                activeOrdersB.length > 0,
+            ].every((v) => !v)
+            if (
+                isManageNewTrades &&
+                this.state === TradeState.ManageNewTrades
+            ) {
+                this.state = await this.manageNewTrades(
+                    positiveMarket,
+                    negativeMarket,
+                    OrderSide.BUY,
+                    OrderSide.SELL
+                )
+            }
+            if (this.state === TradeState.CloseTrades) {
+                this.state = await this.closeAllPositions(
+                    positiveMarket,
+                    negativeMarket
+                )
+            }
+        }
+    }
 
     async placeOrder(
         market: Market,
@@ -163,7 +206,7 @@ export class Trade {
             }
         }
 
-        return BotState.ManageNewTrades
+        return TradeState.ManageNewTrades
     }
 
     async manageNewTrades(
@@ -236,7 +279,7 @@ export class Trade {
             const remainingCapitalShort = capitalShort
         }
 
-        return BotState.ManageNewTrades
+        return TradeState.ManageNewTrades
     }
 
     async getMarketTradeLiquidity(market: Market) {
@@ -320,7 +363,7 @@ export class Trade {
             seriesB
         )
 
-        const zscore = zscoreList[zscoreList.length - 1]
+        const zscore = zscoreList[zscoreList.length - 1] as number
 
         return {
             signalSignPositive: zscore > 0,
@@ -399,5 +442,27 @@ export class Trade {
         return quoteBalance > this.config.tradableCapital
             ? this.config.tradableCapital
             : quoteBalance
+    }
+
+    private async selectMarkets() {
+        const markets = await this.prisma.market.findMany()
+        const positiveMarket = await select<Market>({
+            message: 'Select singal positive market',
+            choices: markets.map((market) => ({
+                name: market.name,
+                value: market,
+            })),
+        })
+        const negativeMarket = await select<Market>({
+            message: 'Select singal negative market',
+            choices: markets
+                .filter((market) => market.id !== positiveMarket.id)
+                .map((market) => ({
+                    name: market.name,
+                    value: market,
+                })),
+        })
+
+        return { positiveMarket, negativeMarket }
     }
 }

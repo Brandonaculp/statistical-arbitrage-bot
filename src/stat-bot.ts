@@ -1,17 +1,16 @@
-import { OrderSide } from '@dydxprotocol/v3-client'
 import { input, select } from '@inquirer/prompts'
-import { Market, Network, PrismaClient } from '@prisma/client'
+import { Network, PrismaClient } from '@prisma/client'
 import { exec } from 'child_process'
 import ora from 'ora'
 import { promisify } from 'util'
 
+import { Backtest } from './backtest/backtest'
 import { Docker } from './docker/docker'
 import { Dydx } from './dydx/dydx'
 import { MarketData } from './market-data/market-data'
 import { Statistics } from './statistics/statistics'
 import { Trade } from './trade/trade'
-import { BotState, StatBotConfig, TradingConfig } from './types'
-import { sleep } from './utils'
+import { BacktestConfig, StatBotConfig, TradingConfig } from './types'
 
 export class StatBot {
     public readonly docker: Docker
@@ -20,7 +19,7 @@ export class StatBot {
     public readonly marketData: MarketData
     public readonly dydx: Dydx
     public readonly trade: Trade
-    private state: BotState = BotState.ManageNewTrades
+    public readonly backtest: Backtest
 
     constructor(public readonly config: StatBotConfig) {
         this.docker = new Docker()
@@ -32,7 +31,8 @@ export class StatBot {
             this.dydx,
             this.prisma,
             this.statistics,
-            config.trading
+            config.trading,
+            config.backtest
         )
 
         this.trade = new Trade(
@@ -41,16 +41,23 @@ export class StatBot {
             this.statistics,
             config.trading
         )
+
+        this.backtest = new Backtest(
+            this.marketData,
+            this.prisma,
+            this.config.trading,
+            this.config.backtest
+        )
     }
 
-    async init() {
+    private async init(isBacktest: boolean) {
         await this.initDocker()
         await this.initPrisma()
         await this.initMarkets()
-        await this.initDydx()
+        if (!isBacktest) await this.initDydx()
     }
 
-    async initDocker() {
+    private async initDocker() {
         const spinner = ora({
             text: 'Starting docker containers',
             spinner: 'point',
@@ -66,7 +73,7 @@ export class StatBot {
         }
     }
 
-    async initPrisma() {
+    private async initPrisma() {
         const spinner = ora({
             text: 'Prisma database push',
             spinner: 'point',
@@ -83,7 +90,7 @@ export class StatBot {
         }
     }
 
-    async initMarkets() {
+    private async initMarkets() {
         const spinner = ora({
             text: 'Update markets',
             spinner: 'point',
@@ -100,7 +107,7 @@ export class StatBot {
         }
     }
 
-    async initDydx() {
+    private async initDydx() {
         const spinner = ora()
 
         try {
@@ -112,74 +119,11 @@ export class StatBot {
         }
     }
 
-    async backtest() {
-        const { positiveMarket, negativeMarket } = await this.getMarkets()
-
-        await this.marketData.updateMaketPrices(positiveMarket)
-    }
-
-    async start() {
-        this.state = BotState.ManageNewTrades
-        const { positiveMarket, negativeMarket } = await this.getMarkets()
-
-        this.dydx.ws!.subscribeOrderbook(positiveMarket, negativeMarket)
-        this.dydx.ws!.subscribeTrades(positiveMarket, negativeMarket)
-        while (true) {
-            await sleep(3000)
-            const positionA = await this.trade.getOpenPosition(positiveMarket)
-            const positionB = await this.trade.getOpenPosition(negativeMarket)
-            const activeOrdersA = await this.trade.getActiveOrders(
-                positiveMarket
-            )
-            const activeOrdersB = await this.trade.getActiveOrders(
-                negativeMarket
-            )
-            const isManageNewTrades = [
-                !!positionA,
-                !!positionB,
-                activeOrdersA.length > 0,
-                activeOrdersB.length > 0,
-            ].every((v) => !v)
-            if (isManageNewTrades && this.state === BotState.ManageNewTrades) {
-                this.state = await this.trade.manageNewTrades(
-                    positiveMarket,
-                    negativeMarket,
-                    OrderSide.BUY,
-                    OrderSide.SELL
-                )
-            }
-            if (this.state === BotState.CloseTrades) {
-                this.state = await this.trade.closeAllPositions(
-                    positiveMarket,
-                    negativeMarket
-                )
-            }
-        }
-    }
-
-    private async getMarkets() {
-        const markets = await this.prisma.market.findMany()
-        const positiveMarket = await select<Market>({
-            message: 'Select singal positive market',
-            choices: markets.map((market) => ({
-                name: market.name,
-                value: market,
-            })),
-        })
-        const negativeMarket = await select<Market>({
-            message: 'Select singal negative market',
-            choices: markets
-                .filter((market) => market.id !== positiveMarket.id)
-                .map((market) => ({
-                    name: market.name,
-                    value: market,
-                })),
-        })
-
-        return { positiveMarket, negativeMarket }
-    }
-
-    static async newStatBot(tradingConfig: TradingConfig, fresh = false) {
+    static async newStatBot(
+        tradingConfig: TradingConfig,
+        backtestConfig?: BacktestConfig,
+        fresh = false
+    ) {
         const network = await select<Network>({
             message: 'Select network',
             choices: [
@@ -226,8 +170,11 @@ export class StatBot {
                 provider,
             },
             trading: tradingConfig,
+            backtest: backtestConfig,
             fresh,
         })
+
+        await bot.init(!!backtestConfig)
 
         return bot
     }

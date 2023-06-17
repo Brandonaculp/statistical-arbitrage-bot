@@ -1,16 +1,22 @@
-import { Market as DydxMarket } from '@dydxprotocol/v3-client'
-import { Market, PrismaClient } from '@prisma/client'
+import {
+    CandleResolution,
+    CandleResponseObject,
+    Market as DydxMarket,
+} from '@dydxprotocol/v3-client'
+import { BacktestData, Market, PrismaClient } from '@prisma/client'
+import dayjs from 'dayjs'
 
 import { Dydx } from '../dydx/dydx'
 import { Statistics } from '../statistics/statistics'
-import { TradingConfig } from '../types'
+import { BacktestConfig, TradingConfig } from '../types'
 
 export class MarketData {
     constructor(
         public readonly dydx: Dydx,
         public readonly prisma: PrismaClient,
         public readonly statistics: Statistics,
-        public readonly config: TradingConfig
+        public readonly tradingConfig: TradingConfig,
+        public readonly backtestConfig?: BacktestConfig
     ) {}
 
     async updateMarkets() {
@@ -57,38 +63,83 @@ export class MarketData {
         }
     }
 
-    async updateMaketPrices(market: Market) {
-        await this.prisma.candle.deleteMany({
-            where: { marketId: market.id },
-        })
+    async storeBacktestData(marketA: Market, marketB: Market) {
+        await this.prisma.backtestData.deleteMany()
 
-        let from = this.config.from
-        let to = this.config.to
+        const marketAPrices = await this.getMarketPrices(marketA)
+        const marketBPrices = await this.getMarketPrices(marketB)
 
-        if (typeof to === 'undefined' || typeof from === 'undefined') {
-            throw new Error('from and to are required')
+        const closePricesA = marketAPrices.map((marketAPrice) =>
+            Number(marketAPrice.close)
+        )
+        const closePricesB = marketBPrices.map((marketBPrice) =>
+            Number(marketBPrice.close)
+        )
+
+        const { zscoreList } = await this.statistics.calculateCoint(
+            closePricesA,
+            closePricesB
+        )
+
+        if (
+            closePricesA.length !== closePricesB.length ||
+            closePricesB.length !== zscoreList.length
+        ) {
+            throw new Error('Something went wrong')
         }
 
-        while (from > to) {
-            const nextStep = Math.max(from - this.config.candlesLimit, to)
+        const queryData: Omit<BacktestData, 'id'>[] = []
+        for (let i = 0; i < zscoreList.length; i++) {
+            const zscore = zscoreList[i]
+            const marketAPrice = closePricesA[i]
+            const marketBPrice = closePricesB[i]
 
-            //TODO: fromISO and toISO
+            if (zscore === null) continue
+
+            queryData.push({
+                zscore,
+                marketAPrice,
+                marketBPrice,
+                zscoreSign: zscore >= 0 ? 1 : -1,
+            })
+        }
+
+        await this.prisma.backtestData.createMany({
+            data: queryData,
+        })
+    }
+
+    async getMarketPrices(market: Market) {
+        if (!this.backtestConfig) {
+            throw new Error('Backtestconfig is not provided')
+        }
+
+        let result: CandleResponseObject[] = []
+        let { from, to } = this.backtestConfig
+
+        while (from > to) {
+            const nextStep = Math.max(
+                from - this.tradingConfig.candlesLimit,
+                to
+            )
+
+            const fromISO = dayjs().subtract(from, this.unit).toISOString()
+            const toISO = dayjs().subtract(nextStep, this.unit).toISOString()
+
             const { candles } = await this.dydx.client.public.getCandles({
                 market: market.name as DydxMarket,
-                resolution: this.config.timeFrame,
-                limit: this.config.candlesLimit,
+                resolution: this.tradingConfig.timeFrame,
+                limit: this.tradingConfig.candlesLimit,
+                fromISO,
+                toISO,
             })
 
-            await this.prisma.candle.createMany({
-                data: candles.map((candle) => ({
-                    close: parseFloat(candle.close),
-                    marketId: market.id,
-                    createdAt: candle.updatedAt,
-                })),
-            })
+            result = [...result, ...candles]
 
             from = nextStep
         }
+
+        return result
     }
 
     async updateMarketsPrices() {
@@ -97,11 +148,11 @@ export class MarketData {
         for (const market of markets) {
             const { candles } = await this.dydx.client.public.getCandles({
                 market: market.name as DydxMarket,
-                resolution: this.config.timeFrame,
-                limit: this.config.candlesLimit,
+                resolution: this.tradingConfig.timeFrame,
+                limit: this.tradingConfig.candlesLimit,
             })
 
-            if (candles.length === this.config.candlesLimit) {
+            if (candles.length === this.tradingConfig.candlesLimit) {
                 await this.prisma.candle.deleteMany({
                     where: { marketId: market.id },
                 })
@@ -110,6 +161,7 @@ export class MarketData {
                     data: candles.map((candle) => ({
                         close: parseFloat(candle.close),
                         marketId: market.id,
+                        createdAt: candle.updatedAt,
                     })),
                 })
             }
@@ -193,5 +245,16 @@ export class MarketData {
         })
 
         return { marketA: coint.pair.marketA, marketB: coint.pair.marketB }
+    }
+
+    private get unit() {
+        switch (this.tradingConfig.timeFrame) {
+            case CandleResolution.ONE_DAY:
+                return 'days'
+            case CandleResolution.ONE_HOUR:
+                return 'hours'
+            default:
+                return 'hours'
+        }
     }
 }

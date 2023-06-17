@@ -1,6 +1,5 @@
 #!/usr/bin/env node
-import { CandleResolution, Market } from '@dydxprotocol/v3-client'
-import dayjs from 'dayjs'
+import { CandleResolution } from '@dydxprotocol/v3-client'
 import * as dotenv from 'dotenv'
 import yargs from 'yargs'
 import { hideBin } from 'yargs/helpers'
@@ -82,6 +81,11 @@ yargs(hideBin(process.argv))
                     description: 'Trigger threshold',
                     default: 1.1,
                 })
+                .positional('slippage', {
+                    type: 'number',
+                    description: 'Slippage percentage',
+                    default: 0.001,
+                })
                 .check((args) => {
                     if (args.from < args.to) {
                         console.log('hererere')
@@ -103,25 +107,32 @@ yargs(hideBin(process.argv))
                 tradableCapital,
                 stopLoss,
                 triggerThresh,
+                slippage,
             } = argv
 
-            // Create a new StatBot instance
-            const bot = await StatBot.newStatBot({
-                timeFrame,
-                candlesLimit,
-                zscoreWindow,
-                tradableCapital,
-                stopLoss,
-                triggerThresh,
-                from,
-                to,
+            const bot = await StatBot.newStatBot(
+                {
+                    timeFrame,
+                    candlesLimit,
+                    zscoreWindow,
+                    tradableCapital,
+                    stopLoss,
+                    triggerThresh,
+                },
+                { from, to, slippage }
+            )
+
+            process.on('SIGINT', async () => {
+                try {
+                    await bot.docker.stopAll()
+                } catch (error) {
+                    console.error(error)
+                }
+
+                process.exit()
             })
 
-            await bot.initDocker()
-            await bot.initPrisma()
-            await bot.initMarkets()
-
-            await bot.backtest()
+            await bot.backtest.start()
         }
     )
     .command(
@@ -200,10 +211,10 @@ yargs(hideBin(process.argv))
                     triggerThresh,
                     limitOrder,
                 },
+                undefined,
                 fresh
             )
 
-            // Graceful shutdown on SIGINT
             process.on('SIGINT', async () => {
                 try {
                     await bot.docker.stopAll()
@@ -214,9 +225,7 @@ yargs(hideBin(process.argv))
                 process.exit()
             })
 
-            await bot.init()
-
-            await bot.start()
+            await bot.trade.start()
         }
     )
     .option('verbose', {
