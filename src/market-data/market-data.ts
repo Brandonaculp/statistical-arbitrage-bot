@@ -1,5 +1,5 @@
-import { Market } from '@dydxprotocol/v3-client'
-import { PrismaClient } from '@prisma/client'
+import { Market as DydxMarket } from '@dydxprotocol/v3-client'
+import { Market, PrismaClient } from '@prisma/client'
 
 import { Dydx } from '../dydx/dydx'
 import { Statistics } from '../statistics/statistics'
@@ -13,14 +13,11 @@ export class MarketData {
         public readonly config: TradingConfig
     ) {}
 
-    async sync() {
-        await this.updateMarkets()
-        await this.storePairs()
-        await this.updateMarketsPrices()
-        await this.updateCointegratedPairs()
-    }
-
     async updateMarkets() {
+        const marketsCount = await this.prisma.market.count()
+
+        if (marketsCount > 0) return
+
         const { markets } = await this.dydx.client.public.getMarkets()
         await this.prisma.market.deleteMany()
 
@@ -33,6 +30,10 @@ export class MarketData {
     }
 
     async storePairs() {
+        const pairsCount = await this.prisma.pair.count()
+
+        if (pairsCount > 0) return
+
         const markets = await this.prisma.market.findMany()
         await this.prisma.pair.deleteMany()
 
@@ -56,12 +57,46 @@ export class MarketData {
         }
     }
 
+    async updateMaketPrices(market: Market) {
+        await this.prisma.candle.deleteMany({
+            where: { marketId: market.id },
+        })
+
+        let from = this.config.from
+        let to = this.config.to
+
+        if (typeof to === 'undefined' || typeof from === 'undefined') {
+            throw new Error('from and to are required')
+        }
+
+        while (from > to) {
+            const nextStep = Math.max(from - this.config.candlesLimit, to)
+
+            //TODO: fromISO and toISO
+            const { candles } = await this.dydx.client.public.getCandles({
+                market: market.name as DydxMarket,
+                resolution: this.config.timeFrame,
+                limit: this.config.candlesLimit,
+            })
+
+            await this.prisma.candle.createMany({
+                data: candles.map((candle) => ({
+                    close: parseFloat(candle.close),
+                    marketId: market.id,
+                    createdAt: candle.updatedAt,
+                })),
+            })
+
+            from = nextStep
+        }
+    }
+
     async updateMarketsPrices() {
         const markets = await this.prisma.market.findMany()
 
         for (const market of markets) {
             const { candles } = await this.dydx.client.public.getCandles({
-                market: market.name as Market,
+                market: market.name as DydxMarket,
                 resolution: this.config.timeFrame,
                 limit: this.config.candlesLimit,
             })

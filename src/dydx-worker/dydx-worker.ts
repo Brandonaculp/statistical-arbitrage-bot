@@ -16,7 +16,6 @@ import {
     TradeSide,
 } from '@prisma/client'
 import { Worker } from 'bullmq'
-import util from 'util'
 
 import { WebSocketMessage } from '../dydx-ws/types'
 import {

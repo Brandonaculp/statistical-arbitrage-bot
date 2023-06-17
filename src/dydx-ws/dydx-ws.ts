@@ -64,7 +64,7 @@ export class DydxWebSocket {
         })
     }
 
-    subscribeOrderbook(markets: Market[]) {
+    subscribeOrderbook(...markets: Market[]) {
         const sendOrderbookSubscription = () => {
             for (const market of markets) {
                 const orderbookMessage = {
@@ -84,7 +84,7 @@ export class DydxWebSocket {
         }
     }
 
-    subscribeTrades(markets: Market[]) {
+    subscribeTrades(...markets: Market[]) {
         const sendTradesSubscription = () => {
             for (const market of markets) {
                 const tradesMessage = {

@@ -141,7 +141,7 @@ export class Trade {
         )
     }
 
-    async closeAllPositions(markets: Market[]) {
+    async closeAllPositions(...markets: Market[]) {
         for (const market of markets) {
             await this.dydx.client.private.cancelActiveOrders(
                 market.name as DydxMarket

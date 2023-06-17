@@ -14,7 +14,7 @@ export class Dydx {
     public readonly web3: Web3
     private readonly networkId: number
     public readonly client: DydxClient
-    public readonly queue: Queue
+    public queue?: Queue
     public ws?: DydxWebSocket
     public worker?: DydxWorker
     public account?: Account
@@ -32,19 +32,11 @@ export class Dydx {
             web3: this.web3,
             networkId: this.networkId,
         })
-
-        this.queue = new Queue('dydx-ws', {
-            connection: {
-                host: 'localhost',
-                port: 6379,
-            },
-        })
     }
 
     public async init() {
         await this.initAccount()
         this.initWebSocket()
-        this.initWorker()
     }
 
     private initWebSocket() {
@@ -52,12 +44,24 @@ export class Dydx {
             throw new Error('apiKey is not defined')
         }
 
+        this.initQueue()
+        this.initWorker()
+
         this.ws = new DydxWebSocket(
             this.config.wsHost,
             this.client,
             this.apiKey,
-            this.queue
+            this.queue!
         )
+    }
+
+    private initQueue() {
+        this.queue = new Queue('dydx-ws', {
+            connection: {
+                host: 'localhost',
+                port: 6379,
+            },
+        })
     }
 
     private initWorker() {

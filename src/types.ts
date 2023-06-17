@@ -15,7 +15,9 @@ export interface TradingConfig {
     tradableCapital: number
     stopLoss: number
     triggerThresh: number
-    limitOrder: boolean
+    limitOrder?: boolean
+    from?: number
+    to?: number
 }
 
 export interface StatBotConfig {

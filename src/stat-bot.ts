@@ -1,6 +1,6 @@
 import { OrderSide } from '@dydxprotocol/v3-client'
 import { input, select } from '@inquirer/prompts'
-import { Network, PrismaClient } from '@prisma/client'
+import { Market, Network, PrismaClient } from '@prisma/client'
 import { exec } from 'child_process'
 import ora from 'ora'
 import { promisify } from 'util'
@@ -44,7 +44,14 @@ export class StatBot {
     }
 
     async init() {
-        const dockerSpinner = ora({
+        await this.initDocker()
+        await this.initPrisma()
+        await this.initMarkets()
+        await this.initDydx()
+    }
+
+    async initDocker() {
+        const spinner = ora({
             text: 'Starting docker containers',
             spinner: 'point',
             color: 'yellow',
@@ -52,105 +59,127 @@ export class StatBot {
 
         try {
             await this.docker.startAll({ fresh: this.config.fresh })
-            dockerSpinner.succeed('Docker containers started')
+            spinner.succeed('Docker containers started')
         } catch (error) {
-            dockerSpinner.fail('Failed to start cotnainers')
-            throw error
-        }
-
-        const dbSpinner = ora({
-            text: 'Pushing database',
-            spinner: 'point',
-            color: 'yellow',
-        }).start()
-
-        try {
-            await this.pushDB()
-            dbSpinner.succeed('Database pushed')
-        } catch (error) {
-            dbSpinner.fail('Failed to push database')
-            throw error
-        }
-
-        const marketDataSpinner = ora({
-            text: 'Syncing market data',
-            spinner: 'point',
-            color: 'yellow',
-        }).start()
-
-        try {
-            await this.marketData.sync()
-            marketDataSpinner.succeed('Market data synced')
-        } catch (error) {
-            marketDataSpinner.fail('Failed to sync market data')
-            throw error
-        }
-
-        const dydxSpinner = ora()
-
-        try {
-            await this.dydx.init()
-            dydxSpinner.succeed('Dydx client initialized')
-        } catch (error) {
-            dydxSpinner.fail('Failed to initialize dydx client')
+            spinner.fail('Failed to start cotnainers')
             throw error
         }
     }
 
+    async initPrisma() {
+        const spinner = ora({
+            text: 'Prisma database push',
+            spinner: 'point',
+            color: 'yellow',
+        }).start()
+
+        try {
+            const execAsync = promisify(exec)
+            await execAsync('npx prisma db push --accept-data-loss')
+            spinner.succeed('Database pushed')
+        } catch (error) {
+            spinner.fail('Failed to push database')
+            throw error
+        }
+    }
+
+    async initMarkets() {
+        const spinner = ora({
+            text: 'Update markets',
+            spinner: 'point',
+            color: 'yellow',
+        }).start()
+
+        try {
+            await this.marketData.updateMarkets()
+            await this.marketData.storePairs()
+            spinner.succeed('Markets updated')
+        } catch (error) {
+            spinner.fail('Failed to update markets')
+            throw error
+        }
+    }
+
+    async initDydx() {
+        const spinner = ora()
+
+        try {
+            await this.dydx.init()
+            spinner.succeed('Dydx client initialized')
+        } catch (error) {
+            spinner.fail('Failed to initialize dydx client')
+            throw error
+        }
+    }
+
+    async backtest() {
+        const { positiveMarket, negativeMarket } = await this.getMarkets()
+
+        await this.marketData.updateMaketPrices(positiveMarket)
+    }
+
     async start() {
         this.state = BotState.ManageNewTrades
+        const { positiveMarket, negativeMarket } = await this.getMarkets()
 
-        const { marketA, marketB } =
-            await this.marketData.findCointegratedPair()
-
-        this.dydx.ws!.subscribeOrderbook([marketA, marketB])
-        this.dydx.ws!.subscribeTrades([marketA, marketB])
-
+        this.dydx.ws!.subscribeOrderbook(positiveMarket, negativeMarket)
+        this.dydx.ws!.subscribeTrades(positiveMarket, negativeMarket)
         while (true) {
             await sleep(3000)
-
-            const positionA = await this.trade.getOpenPosition(marketA)
-            const positionB = await this.trade.getOpenPosition(marketB)
-            const activeOrdersA = await this.trade.getActiveOrders(marketA)
-            const activeOrdersB = await this.trade.getActiveOrders(marketB)
-
+            const positionA = await this.trade.getOpenPosition(positiveMarket)
+            const positionB = await this.trade.getOpenPosition(negativeMarket)
+            const activeOrdersA = await this.trade.getActiveOrders(
+                positiveMarket
+            )
+            const activeOrdersB = await this.trade.getActiveOrders(
+                negativeMarket
+            )
             const isManageNewTrades = [
                 !!positionA,
                 !!positionB,
                 activeOrdersA.length > 0,
                 activeOrdersB.length > 0,
             ].every((v) => !v)
-
             if (isManageNewTrades && this.state === BotState.ManageNewTrades) {
                 this.state = await this.trade.manageNewTrades(
-                    marketA,
-                    marketB,
+                    positiveMarket,
+                    negativeMarket,
                     OrderSide.BUY,
                     OrderSide.SELL
                 )
             }
-
             if (this.state === BotState.CloseTrades) {
-                this.state = await this.trade.closeAllPositions([
-                    marketA,
-                    marketB,
-                ])
+                this.state = await this.trade.closeAllPositions(
+                    positiveMarket,
+                    negativeMarket
+                )
             }
         }
     }
 
-    static async newStatBot(
-        {
-            timeFrame,
-            candlesLimit,
-            zscoreWindow,
-            tradableCapital,
-            stopLoss,
-            triggerThresh,
-            limitOrder,
-        }: TradingConfig,
-        fresh = false
-    ) {
+    private async getMarkets() {
+        const markets = await this.prisma.market.findMany()
+        const positiveMarket = await select<Market>({
+            message: 'Select singal positive market',
+            choices: markets.map((market) => ({
+                name: market.name,
+                value: market,
+            })),
+        })
+        const negativeMarket = await select<Market>({
+            message: 'Select singal negative market',
+            choices: markets
+                .filter((market) => market.id !== positiveMarket.id)
+                .map((market) => ({
+                    name: market.name,
+                    value: market,
+                })),
+        })
+
+        return { positiveMarket, negativeMarket }
+    }
+
+    static async newStatBot(tradingConfig: TradingConfig, fresh = false) {
         const network = await select<Network>({
             message: 'Select network',
             choices: [
@@ -196,23 +225,10 @@ export class StatBot {
                 network,
                 provider,
             },
-            trading: {
-                timeFrame,
-                candlesLimit,
-                zscoreWindow,
-                tradableCapital,
-                stopLoss,
-                triggerThresh,
-                limitOrder,
-            },
+            trading: tradingConfig,
             fresh,
         })
 
         return bot
-    }
-
-    private async pushDB() {
-        const execAsync = promisify(exec)
-        await execAsync('npx prisma db push --accept-data-loss')
     }
 }

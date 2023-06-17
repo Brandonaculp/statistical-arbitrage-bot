@@ -24,6 +24,7 @@
         "@prisma/client": "4.13.0",
         "axios": "^1.4.0",
         "bullmq": "^3.13.4",
+        "dayjs": "^1.11.8",
         "dockerode": "^3.3.5",
         "dotenv": "^16.0.3",
         "ora": "^6.3.1",
