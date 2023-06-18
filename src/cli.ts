@@ -14,6 +14,11 @@ yargs(hideBin(process.argv))
         'run backtesting',
         (yargs) => {
             return yargs
+                .positional('fresh', {
+                    type: 'boolean',
+                    description: 'Fresh start',
+                    default: false,
+                })
                 .positional('candles-limit', {
                     type: 'number',
                     description: 'The number of candles to fetch(max: 100)',
@@ -108,6 +113,7 @@ yargs(hideBin(process.argv))
                 stopLoss,
                 triggerThresh,
                 slippage,
+                fresh,
             } = argv
 
             const bot = await StatBot.newStatBot(
@@ -119,7 +125,8 @@ yargs(hideBin(process.argv))
                     stopLoss,
                     triggerThresh,
                 },
-                { from, to, slippage }
+                { from, to, slippage },
+                fresh
             )
 
             process.on('SIGINT', async () => {
