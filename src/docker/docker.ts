@@ -36,7 +36,7 @@ export class Docker {
                 `,
             ],
             HostConfig: {
-                Binds: [`${hostPythonPath}:/app`],
+                Binds: [`python:/app`],
                 RestartPolicy: { Name: 'always' },
                 PortBindings: {
                     '8000/tcp': [{ HostPort: '8000' }],

@@ -4,6 +4,7 @@ import * as dotenv from 'dotenv'
 import yargs from 'yargs'
 import { hideBin } from 'yargs/helpers'
 
+import { Chart } from './chart/chart'
 import { StatBot } from './stat-bot'
 
 dotenv.config()
@@ -116,30 +117,33 @@ yargs(hideBin(process.argv))
                 fresh,
             } = argv
 
-            const bot = await StatBot.newStatBot(
-                {
-                    timeFrame,
-                    candlesLimit,
-                    zscoreWindow,
-                    tradableCapital,
-                    stopLoss,
-                    triggerThresh,
-                },
-                { from, to, slippage },
-                fresh
-            )
+            const chart = new Chart()
+            await chart.backtestChart()
 
-            process.on('SIGINT', async () => {
-                try {
-                    await bot.docker.stopAll()
-                } catch (error) {
-                    console.error(error)
-                }
+            // const bot = await StatBot.newStatBot(
+            //     {
+            //         timeFrame,
+            //         candlesLimit,
+            //         zscoreWindow,
+            //         tradableCapital,
+            //         stopLoss,
+            //         triggerThresh,
+            //     },
+            //     { from, to, slippage },
+            //     fresh
+            // )
 
-                process.exit()
-            })
+            // process.on('SIGINT', async () => {
+            //     try {
+            //         await bot.docker.stopAll()
+            //     } catch (error) {
+            //         console.error(error)
+            //     }
 
-            await bot.backtest.start()
+            //     process.exit()
+            // })
+
+            // await bot.backtest.start()
         }
     )
     .command(
