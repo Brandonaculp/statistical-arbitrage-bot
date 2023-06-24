@@ -1,19 +1,25 @@
-import { Market, PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@prisma/client'
 import { ChartConfiguration } from 'chart.js'
 import { access, mkdir, readFile, writeFile } from 'fs/promises'
 import Handlebars from 'handlebars'
 
-import { BacktestData, BacktestResult } from '../backtest/types'
+import { BacktestSummary } from '../backtest/types'
 
 export class Chart {
     constructor(public readonly prisma: PrismaClient) {}
 
-    async backtestChart(
-        marketA: Market,
-        marketB: Market,
-        backtestData: BacktestData[],
-        backtestResult: BacktestResult[]
-    ) {
+    async backtestChart(backtestSummary: BacktestSummary) {
+        const {
+            marketA,
+            marketB,
+            initialLongCapital,
+            initialShortCapital,
+            triggerThresh,
+            slippagePercent,
+            backtestData,
+            backtestResult,
+        } = backtestSummary
+
         const templateSource = await readFile(
             'templates/backtest-template.html',
             'utf-8'
@@ -79,9 +85,29 @@ export class Chart {
             },
         }
 
-        const backtestResultGridData = backtestResult.map((result) => [
+        const backtestSummmaryGridData = backtestResult.map((result, i) => [
+            backtestData[i].zscore,
+            backtestData[i].zscoreSign,
+
             result.longMarket.name,
+            result.longMarketPrice,
+            result.longMarketNextPrice,
+            result.trigger,
             result.longAt,
+            result.closeLongAt,
+            result.longReturn,
+            result.slippage,
+            result.longCapital,
+
+            result.shortMarket.name,
+            result.shortMarketPrice,
+            result.shortMarketNextPrice,
+            result.trigger,
+            result.shortAt,
+            result.closeShortAt,
+            result.shortReturn,
+            result.slippage,
+            result.shortCapital,
         ])
 
         await this.createChartDirectory()
@@ -89,11 +115,17 @@ export class Chart {
         await writeFile(
             'charts/backtest-chart.html',
             template({
-                marketA: marketA,
-                marketB: marketB,
+                marketA,
+                marketB,
+                initialLongCapital,
+                initialShortCapital,
+                triggerThresh,
+                slippagePercent,
                 zscoreChartConfig: JSON.stringify(zscoreChartConfig),
                 pricesChartConfig: JSON.stringify(pricesChartConfig),
-                backtestResultGridData: JSON.stringify(backtestResultGridData),
+                backtestSummmaryGridData: JSON.stringify(
+                    backtestSummmaryGridData
+                ),
             })
         )
     }

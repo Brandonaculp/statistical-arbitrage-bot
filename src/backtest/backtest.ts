@@ -4,7 +4,7 @@ import { Market, PrismaClient } from '@prisma/client'
 import { Chart } from '../chart/chart'
 import { MarketData } from '../market-data/market-data'
 import { BacktestConfig, TradingConfig } from '../types'
-import { BacktestData, BacktestResult } from './types'
+import { BacktestData, BacktestSummary } from './types'
 
 export class Backtest {
     constructor(
@@ -34,7 +34,16 @@ export class Backtest {
         let longCapital = tradableCapital / 2
         let shortCapital = tradableCapital - longCapital
 
-        const backtestResult: BacktestResult[] = []
+        const backtestSummary: BacktestSummary = {
+            marketA,
+            marketB,
+            initialLongCapital: longCapital,
+            initialShortCapital: shortCapital,
+            triggerThresh,
+            slippagePercent,
+            backtestData,
+            backtestResult: [],
+        }
 
         for (const [
             i,
@@ -104,7 +113,7 @@ export class Backtest {
             longCapital = longCapital * longReturn + slippage
             shortCapital = shortCapital * shortReturn + slippage
 
-            backtestResult.push({
+            backtestSummary.backtestResult.push({
                 trigger,
                 slippage,
 
@@ -126,15 +135,10 @@ export class Backtest {
             })
         }
 
-        await this.chart.backtestChart(
-            marketA,
-            marketB,
-            backtestData,
-            backtestResult
-        )
+        await this.chart.backtestChart(backtestSummary)
     }
 
-    private findNextPrice(backtestData: BacktestData[], i: number) {
+    private findNextPrice(backtestData: BacktestData, i: number) {
         const { marketAPrice, marketBPrice, zscoreSign } = backtestData[i]
 
         let marketANextPrice = marketAPrice
@@ -157,7 +161,7 @@ export class Backtest {
         return { marketANextPrice, marketBNextPrice }
     }
 
-    private isPreviousZscoreSignSame(backtestData: BacktestData[], i: number) {
+    private isPreviousZscoreSignSame(backtestData: BacktestData, i: number) {
         if (i === 0) return false
 
         const { zscoreSign } = backtestData[i]

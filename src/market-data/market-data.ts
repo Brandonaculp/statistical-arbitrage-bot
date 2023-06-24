@@ -87,7 +87,7 @@ export class MarketData {
             throw new Error('Something went wrong')
         }
 
-        const backtestData: BacktestData[] = []
+        const backtestData: BacktestData = []
 
         for (let i = 0; i < zscoreList.length; i++) {
             const zscore = zscoreList[i]
