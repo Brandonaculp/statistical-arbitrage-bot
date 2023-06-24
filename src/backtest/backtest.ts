@@ -99,7 +99,7 @@ export class Backtest {
                 !this.isPreviousZscoreSignSame(backtestData, i)
             ) {
                 trigger = 1
-                slippage = -slippagePercent! * tradableCapital * 2
+                slippage = -slippagePercent! * tradableCapital
 
                 longAt = longMarketPrice
                 closeLongAt = longMarketNextPrice
@@ -134,6 +134,56 @@ export class Backtest {
                 shortReturn,
             })
         }
+
+        const backtestResultLen = backtestSummary.backtestResult.length
+
+        backtestSummary.longProfit =
+            backtestSummary.backtestResult[backtestResultLen - 1].longCapital -
+            backtestSummary.initialLongCapital
+        backtestSummary.shortProfit =
+            backtestSummary.backtestResult[backtestResultLen - 1].shortCapital -
+            backtestSummary.initialShortCapital
+        backtestSummary.netProfit =
+            backtestSummary.longProfit + backtestSummary.shortProfit
+
+        backtestSummary.roi = backtestSummary.netProfit / tradableCapital
+
+        backtestSummary.winRateLong =
+            backtestSummary.backtestResult.filter(
+                (result) => result.longReturn > 1
+            ).length /
+            backtestSummary.backtestResult.filter(
+                (result) => result.trigger === 1
+            ).length
+
+        backtestSummary.winRateShort =
+            backtestSummary.backtestResult.filter(
+                (result) => result.shortReturn > 1
+            ).length /
+            backtestSummary.backtestResult.filter(
+                (result) => result.trigger === 1
+            ).length
+
+        backtestSummary.avgWinRate =
+            (backtestSummary.winRateLong + backtestSummary.winRateShort) / 2
+
+        backtestSummary.bestLong =
+            backtestSummary.backtestResult.reduce((max, result) => {
+                return result.longReturn > max ? result.longReturn : max
+            }, 0) - 1
+        backtestSummary.worstLong =
+            backtestSummary.backtestResult.reduce((min, result) => {
+                return result.longReturn < min ? result.longReturn : min
+            }, 0) - 1
+
+        backtestSummary.bestShort =
+            backtestSummary.backtestResult.reduce((max, result) => {
+                return result.shortReturn > max ? result.shortReturn : max
+            }, 0) - 1
+        backtestSummary.worstShort =
+            backtestSummary.backtestResult.reduce((min, result) => {
+                return result.shortReturn < min ? result.shortReturn : min
+            }, 0) - 1
 
         await this.chart.backtestChart(backtestSummary)
     }

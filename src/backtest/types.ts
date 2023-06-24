@@ -35,6 +35,17 @@ export interface BacktestSummary {
     initialShortCapital: number
     triggerThresh: number
     slippagePercent: number
+    longProfit?: number
+    shortProfit?: number
+    netProfit?: number
+    roi?: number
+    winRateLong?: number
+    winRateShort?: number
+    avgWinRate?: number
+    bestLong?: number
+    bestShort?: number
+    worstLong?: number
+    worstShort?: number
     backtestData: BacktestData
     backtestResult: BacktestResult
 }
