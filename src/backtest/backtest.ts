@@ -1,14 +1,16 @@
 import { select } from '@inquirer/prompts'
-import { BacktestData, Market, PrismaClient } from '@prisma/client'
-import { writeFile } from 'fs/promises'
+import { Market, PrismaClient } from '@prisma/client'
 
+import { Chart } from '../chart/chart'
 import { MarketData } from '../market-data/market-data'
 import { BacktestConfig, TradingConfig } from '../types'
+import { BacktestData } from './types'
 
 export class Backtest {
     constructor(
         public readonly marketData: MarketData,
         public readonly prisma: PrismaClient,
+        public readonly chart: Chart,
         public readonly tradingConfig: TradingConfig,
         public readonly backtestConfig?: BacktestConfig
     ) {}
@@ -20,17 +22,17 @@ export class Backtest {
 
         const { marketA, marketB, longMarketForNegativeZscore } =
             await this.selectMarkets()
-        await this.marketData.storeBacktestData(marketA, marketB)
 
-        const backtestData = await this.prisma.backtestData.findMany()
+        const backtestData = await this.marketData.getBacktestData(
+            marketA,
+            marketB
+        )
 
         const { triggerThresh, tradableCapital } = this.tradingConfig
         const { slippage: slippagePercent } = this.backtestConfig
 
         let longCapital = tradableCapital / 2
         let shortCapital = tradableCapital - longCapital
-
-        const data: Object[] = []
 
         for (const [
             i,
@@ -99,29 +101,9 @@ export class Backtest {
 
             longCapital = longCapital * longReturn + slippage
             shortCapital = shortCapital * shortReturn + slippage
-
-            data.push({
-                longMarket: longMarket.name,
-                shortMarket: shortMarket.name,
-                zscore,
-                longMarketPrice,
-                longMarketNextPrice,
-                shortMarketPrice,
-                shortMarketNextPrice,
-                trigger,
-                longAt,
-                closeLongAt,
-                longReturn,
-                longCapital,
-                shortAt,
-                closeShortAt,
-                shortReturn,
-                shortCapital,
-                slippage,
-            })
         }
 
-        await writeFile('backtest.json', JSON.stringify(data))
+        await this.chart.backtestChart(marketA, marketB, backtestData)
     }
 
     private findNextPrice(backtestData: BacktestData[], i: number) {

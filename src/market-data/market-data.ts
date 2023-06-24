@@ -3,9 +3,10 @@ import {
     CandleResponseObject,
     Market as DydxMarket,
 } from '@dydxprotocol/v3-client'
-import { BacktestData, Market, PrismaClient } from '@prisma/client'
+import { Market, PrismaClient } from '@prisma/client'
 import dayjs from 'dayjs'
 
+import { BacktestData } from '../backtest/types'
 import { Dydx } from '../dydx/dydx'
 import { Statistics } from '../statistics/statistics'
 import { BacktestConfig, TradingConfig } from '../types'
@@ -63,9 +64,7 @@ export class MarketData {
         }
     }
 
-    async storeBacktestData(marketA: Market, marketB: Market) {
-        await this.prisma.backtestData.deleteMany()
-
+    async getBacktestData(marketA: Market, marketB: Market) {
         const marketAPrices = await this.getMarketPrices(marketA)
         const marketBPrices = await this.getMarketPrices(marketB)
 
@@ -88,7 +87,8 @@ export class MarketData {
             throw new Error('Something went wrong')
         }
 
-        const queryData: Omit<BacktestData, 'id'>[] = []
+        const backtestData: BacktestData[] = []
+
         for (let i = 0; i < zscoreList.length; i++) {
             const zscore = zscoreList[i]
             const marketAPrice = closePricesA[i]
@@ -96,7 +96,7 @@ export class MarketData {
 
             if (zscore === null) continue
 
-            queryData.push({
+            backtestData.push({
                 zscore,
                 marketAPrice,
                 marketBPrice,
@@ -104,9 +104,7 @@ export class MarketData {
             })
         }
 
-        await this.prisma.backtestData.createMany({
-            data: queryData,
-        })
+        return backtestData
     }
 
     async getMarketPrices(market: Market) {

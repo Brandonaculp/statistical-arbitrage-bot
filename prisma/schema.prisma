@@ -175,13 +175,3 @@ model Coint {
   hedgeRatio    Float
   zeroCrossing  Float
 }
-
-model BacktestData {
-  id Int @id @default(autoincrement())
-
-  marketAPrice Float
-  marketBPrice Float
-
-  zscore     Float
-  zscoreSign Int
-}

@@ -9,12 +9,24 @@
         <script src="https://cdn.tailwindcss.com"></script>
     </head>
     <body>
-        <canvas id="chart-container"></canvas>
+        <div class="p-5">
+            <h3>{{marketA.name}} {{marketB.name}}</h3>
+        </div>
+
+        <div style="width: 700px; height: 600px">
+            <canvas id="zscore-chart"></canvas>
+        </div>
+
+        <div style="width: 700px; height: 600px">
+            <canvas id="prices-chart"></canvas>
+        </div>
 
         <script>
-            const chartConfig = {{{chartConfig}}}
+            const zscoreChartConfig = {{{zscoreChartConfig}}}
+            const pricesChartConfig = {{{pricesChartConfig}}}
 
-            new Chart(document.getElementById('chart-container'), chartConfig)
+            new Chart(document.getElementById('zscore-chart'), zscoreChartConfig)
+            new Chart(document.getElementById('prices-chart'), pricesChartConfig)
         </script>
     </body>
 </html>

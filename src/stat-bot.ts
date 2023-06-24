@@ -5,6 +5,7 @@ import ora from 'ora'
 import { promisify } from 'util'
 
 import { Backtest } from './backtest/backtest'
+import { Chart } from './chart/chart'
 import { Docker } from './docker/docker'
 import { Dydx } from './dydx/dydx'
 import { MarketData } from './market-data/market-data'
@@ -20,6 +21,7 @@ export class StatBot {
     public readonly dydx: Dydx
     public readonly trade: Trade
     public readonly backtest: Backtest
+    public readonly chart: Chart
 
     constructor(public readonly config: StatBotConfig) {
         this.docker = new Docker()
@@ -35,6 +37,8 @@ export class StatBot {
             config.backtest
         )
 
+        this.chart = new Chart(this.prisma)
+
         this.trade = new Trade(
             this.dydx,
             this.prisma,
@@ -45,6 +49,7 @@ export class StatBot {
         this.backtest = new Backtest(
             this.marketData,
             this.prisma,
+            this.chart,
             this.config.trading,
             this.config.backtest
         )

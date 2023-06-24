@@ -1,34 +1,77 @@
+import { Market, PrismaClient } from '@prisma/client'
 import { ChartConfiguration } from 'chart.js'
 import { access, mkdir, readFile, writeFile } from 'fs/promises'
 import Handlebars from 'handlebars'
 
-export class Chart {
-    constructor() {}
+import { BacktestData } from '../backtest/types'
 
-    async backtestChart() {
+export class Chart {
+    constructor(public readonly prisma: PrismaClient) {}
+
+    async backtestChart(
+        marketA: Market,
+        marketB: Market,
+        backtestData: BacktestData[]
+    ) {
         const templateSource = await readFile(
             'templates/backtest-template.html',
             'utf-8'
         )
         const template = Handlebars.compile(templateSource)
 
-        const chartConfig: ChartConfiguration<'line'> = {
+        const marketAPrices = backtestData.map((data) => data.marketAPrice)
+        const marketBPrices = backtestData.map((data) => data.marketBPrice)
+
+        const sumA = marketAPrices.reduce((sum, price) => sum + price, 0)
+        const sumB = marketBPrices.reduce((sum, price) => sum + price, 0)
+
+        const normalizedMarketAPrices = marketAPrices.map(
+            (price) => price / sumA
+        )
+        const normalizedMarketBPrices = marketBPrices.map(
+            (price) => price / sumB
+        )
+
+        const zscoreChartConfig: ChartConfiguration<'line'> = {
             type: 'line',
             data: {
-                labels: ['a', 'b', 'c', 'd', 'e', 'f', 'g'],
+                labels: Array.from(Array(backtestData.length).keys()),
                 datasets: [
                     {
-                        label: 'My First Dataset',
-                        data: [65, 59, 80, 81, 56, 55, 40],
-                        fill: false,
+                        label: 'zscore',
+                        data: backtestData.map((data) => data.zscore),
+                        pointStyle: false,
+                        fill: true,
                         borderColor: 'rgb(75, 192, 192)',
+                        borderWidth: 2,
+                        tension: 0.1,
+                    },
+                ],
+            },
+        }
+
+        const pricesChartConfig: ChartConfiguration<'line'> = {
+            type: 'line',
+
+            data: {
+                labels: Array.from(Array(backtestData.length).keys()),
+                datasets: [
+                    {
+                        label: marketA.name,
+                        data: normalizedMarketAPrices,
+                        pointStyle: false,
+                        fill: false,
+                        borderColor: '#E4A5FF',
+                        borderWidth: 2,
                         tension: 0.1,
                     },
                     {
-                        label: 'My Second Dataset',
-                        data: [28, 48, 40, 19, 86, 27, 90],
+                        label: marketB.name,
+                        data: normalizedMarketBPrices,
+                        pointStyle: false,
                         fill: false,
-                        borderColor: 'rgb(75, 192, 100)',
+                        borderColor: '#FFAAC9',
+                        borderWidth: 2,
                         tension: 0.1,
                     },
                 ],
@@ -40,7 +83,10 @@ export class Chart {
         await writeFile(
             'charts/backtest-chart.html',
             template({
-                chartConfig: JSON.stringify(chartConfig),
+                marketA: marketA,
+                marketB: marketB,
+                zscoreChartConfig: JSON.stringify(zscoreChartConfig),
+                pricesChartConfig: JSON.stringify(pricesChartConfig),
             })
         )
     }
