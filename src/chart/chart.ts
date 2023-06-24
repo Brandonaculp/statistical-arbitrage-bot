@@ -108,7 +108,7 @@ export class Chart {
             result.closeLongAt,
             result.longReturn,
             result.slippage,
-            result.longCapital,
+            result.longCapital.toFixed(3),
 
             result.shortMarket.name,
             result.shortMarketPrice,
@@ -118,7 +118,7 @@ export class Chart {
             result.closeShortAt,
             result.shortReturn,
             result.slippage,
-            result.shortCapital,
+            result.shortCapital.toFixed(3),
         ])
 
         await this.createChartDirectory()

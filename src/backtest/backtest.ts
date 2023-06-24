@@ -174,7 +174,7 @@ export class Backtest {
         backtestSummary.worstLong =
             backtestSummary.backtestResult.reduce((min, result) => {
                 return result.longReturn < min ? result.longReturn : min
-            }, 0) - 1
+            }, Infinity) - 1
 
         backtestSummary.bestShort =
             backtestSummary.backtestResult.reduce((max, result) => {
@@ -183,7 +183,7 @@ export class Backtest {
         backtestSummary.worstShort =
             backtestSummary.backtestResult.reduce((min, result) => {
                 return result.shortReturn < min ? result.shortReturn : min
-            }, 0) - 1
+            }, Infinity) - 1
 
         await this.chart.backtestChart(backtestSummary)
     }
