@@ -5,7 +5,13 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>backtest</title>
 
+        <link
+            href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css"
+            rel="stylesheet"
+        />
+
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
         <script src="https://cdn.tailwindcss.com"></script>
     </head>
     <body>
@@ -13,20 +19,29 @@
             <h3>{{marketA.name}} {{marketB.name}}</h3>
         </div>
 
-        <div style="width: 700px; height: 600px">
+        <div>
             <canvas id="zscore-chart"></canvas>
         </div>
 
-        <div style="width: 700px; height: 600px">
+        <div>
             <canvas id="prices-chart"></canvas>
         </div>
+
+        <div id="backtest-result"></div>
 
         <script>
             const zscoreChartConfig = {{{zscoreChartConfig}}}
             const pricesChartConfig = {{{pricesChartConfig}}}
+            const backtestResultGridData = {{{backtestResultGridData}}}
 
             new Chart(document.getElementById('zscore-chart'), zscoreChartConfig)
             new Chart(document.getElementById('prices-chart'), pricesChartConfig)
+
+            new gridjs.Grid({
+                columns: ["Long market", "Long at"],
+                pagination: true,
+                data: backtestResultGridData
+                }).render(document.getElementById("backtest-result"))
         </script>
     </body>
 </html>

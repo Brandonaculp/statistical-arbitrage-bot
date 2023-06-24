@@ -4,7 +4,7 @@ import { Market, PrismaClient } from '@prisma/client'
 import { Chart } from '../chart/chart'
 import { MarketData } from '../market-data/market-data'
 import { BacktestConfig, TradingConfig } from '../types'
-import { BacktestData } from './types'
+import { BacktestData, BacktestResult } from './types'
 
 export class Backtest {
     constructor(
@@ -33,6 +33,8 @@ export class Backtest {
 
         let longCapital = tradableCapital / 2
         let shortCapital = tradableCapital - longCapital
+
+        const backtestResult: BacktestResult[] = []
 
         for (const [
             i,
@@ -101,9 +103,35 @@ export class Backtest {
 
             longCapital = longCapital * longReturn + slippage
             shortCapital = shortCapital * shortReturn + slippage
+
+            backtestResult.push({
+                trigger,
+                slippage,
+
+                longCapital,
+                longMarket,
+                longMarketPrice,
+                longMarketNextPrice,
+                longAt,
+                closeLongAt,
+                longReturn,
+
+                shortCapital,
+                shortMarket,
+                shortMarketPrice,
+                shortMarketNextPrice,
+                shortAt,
+                closeShortAt,
+                shortReturn,
+            })
         }
 
-        await this.chart.backtestChart(marketA, marketB, backtestData)
+        await this.chart.backtestChart(
+            marketA,
+            marketB,
+            backtestData,
+            backtestResult
+        )
     }
 
     private findNextPrice(backtestData: BacktestData[], i: number) {

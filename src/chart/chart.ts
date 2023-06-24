@@ -3,7 +3,7 @@ import { ChartConfiguration } from 'chart.js'
 import { access, mkdir, readFile, writeFile } from 'fs/promises'
 import Handlebars from 'handlebars'
 
-import { BacktestData } from '../backtest/types'
+import { BacktestData, BacktestResult } from '../backtest/types'
 
 export class Chart {
     constructor(public readonly prisma: PrismaClient) {}
@@ -11,7 +11,8 @@ export class Chart {
     async backtestChart(
         marketA: Market,
         marketB: Market,
-        backtestData: BacktestData[]
+        backtestData: BacktestData[],
+        backtestResult: BacktestResult[]
     ) {
         const templateSource = await readFile(
             'templates/backtest-template.html',
@@ -78,6 +79,11 @@ export class Chart {
             },
         }
 
+        const backtestResultGridData = backtestResult.map((result) => [
+            result.longMarket.name,
+            result.longAt,
+        ])
+
         await this.createChartDirectory()
 
         await writeFile(
@@ -87,6 +93,7 @@ export class Chart {
                 marketB: marketB,
                 zscoreChartConfig: JSON.stringify(zscoreChartConfig),
                 pricesChartConfig: JSON.stringify(pricesChartConfig),
+                backtestResultGridData: JSON.stringify(backtestResultGridData),
             })
         )
     }
