@@ -1,10 +1,10 @@
 import { select } from '@inquirer/prompts'
-import { Market, PrismaClient } from '@prisma/client'
+import { type Market, type PrismaClient } from '@prisma/client'
 
-import { Chart } from '../chart/chart'
-import { MarketData } from '../market-data/market-data'
-import { BacktestConfig, TradingConfig } from '../types'
-import { BacktestData, BacktestSummary } from './types'
+import { type Chart } from '../chart/chart'
+import { type MarketData } from '../market-data/market-data'
+import { type BacktestConfig, type TradingConfig } from '../types'
+import { type BacktestData, type BacktestSummary } from './types'
 
 export class Backtest {
     constructor(
@@ -15,8 +15,8 @@ export class Backtest {
         public readonly backtestConfig?: BacktestConfig
     ) {}
 
-    async start() {
-        if (!this.backtestConfig) {
+    async start(): Promise<void> {
+        if (this.backtestConfig == null) {
             throw new Error('backtestConfig is not provided')
         }
 
@@ -99,7 +99,7 @@ export class Backtest {
                 !this.isPreviousZscoreSignSame(backtestData, i)
             ) {
                 trigger = 1
-                slippage = -slippagePercent! * tradableCapital
+                slippage = -slippagePercent * tradableCapital
 
                 longAt = longMarketPrice
                 closeLongAt = longMarketNextPrice
@@ -188,7 +188,10 @@ export class Backtest {
         await this.chart.backtestChart(backtestSummary)
     }
 
-    private findNextPrice(backtestData: BacktestData, i: number) {
+    private findNextPrice(
+        backtestData: BacktestData,
+        i: number
+    ): { marketANextPrice: number; marketBNextPrice: number } {
         const { marketAPrice, marketBPrice, zscoreSign } = backtestData[i]
 
         let marketANextPrice = marketAPrice
@@ -211,7 +214,10 @@ export class Backtest {
         return { marketANextPrice, marketBNextPrice }
     }
 
-    private isPreviousZscoreSignSame(backtestData: BacktestData, i: number) {
+    private isPreviousZscoreSignSame(
+        backtestData: BacktestData,
+        i: number
+    ): boolean {
         if (i === 0) return false
 
         const { zscoreSign } = backtestData[i]
@@ -220,7 +226,11 @@ export class Backtest {
         return zscoreSign === prevZscoreSign
     }
 
-    private async selectMarkets() {
+    private async selectMarkets(): Promise<{
+        marketA: Market
+        marketB: Market
+        longMarketForNegativeZscore: string
+    }> {
         const markets = await this.prisma.market.findMany()
         const marketA = await select<Market>({
             message: 'Select marketA',

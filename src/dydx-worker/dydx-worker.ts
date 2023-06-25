@@ -1,31 +1,35 @@
 import {
-    AccountResponseObject,
-    OrderResponseObject,
+    type AccountResponseObject,
+    type OrderResponseObject,
     OrderStatus,
-    PositionResponseObject,
+    type PositionResponseObject,
     PositionStatus,
-    Trade,
+    type Trade,
 } from '@dydxprotocol/v3-client'
 import {
-    Account,
-    ActiveOrderSide,
-    ActiveOrderStatus,
-    ActiveOrderType,
-    PositionSide,
-    PrismaClient,
-    TradeSide,
+    type Account,
+    type ActiveOrderSide,
+    type ActiveOrderStatus,
+    type ActiveOrderType,
+    type PositionSide,
+    type PrismaClient,
+    type TradeSide,
 } from '@prisma/client'
 import { Worker } from 'bullmq'
 
-import { WebSocketMessage } from '../dydx-ws/types'
+import { type WebSocketMessage } from '../dydx-ws/types'
 import {
-    MarketsResponseObject,
-    OrderbookChannelDataResponseObject,
-    OrderbookSubscribeResponseObject,
+    type MarketsResponseObject,
+    type OrderbookChannelDataResponseObject,
+    type OrderbookSubscribeResponseObject,
 } from './types'
 
 export class DydxWorker {
-    private worker: Worker<WebSocketMessage, any, WebSocketMessage['channel']>
+    private readonly worker: Worker<
+        WebSocketMessage,
+        any,
+        WebSocketMessage['channel']
+    >
 
     constructor(
         public readonly prisma: PrismaClient,
@@ -61,13 +65,15 @@ export class DydxWorker {
         )
     }
 
-    private async handleMarketsWSMessage(data: WebSocketMessage) {
+    private async handleMarketsWSMessage(
+        data: WebSocketMessage
+    ): Promise<void> {
         const markets = (
             data.type === 'subscribed' ? data.contents.markets : data.contents
         ) as MarketsResponseObject
 
         for (const [name, marketData] of Object.entries(markets)) {
-            if (marketData.indexPrice) {
+            if (marketData.indexPrice !== undefined) {
                 const indexPrice = parseFloat(marketData.indexPrice)
 
                 await this.prisma.market.update({
@@ -82,11 +88,13 @@ export class DydxWorker {
         }
     }
 
-    private async handleOrderbookWSMessage(data: WebSocketMessage) {
+    private async handleOrderbookWSMessage(
+        data: WebSocketMessage
+    ): Promise<void> {
         const market = await this.prisma.market.findFirst({
             where: { name: data.id },
         })
-        if (!market) return
+        if (market == null) return
 
         if (data.type === 'subscribed') {
             await this.prisma.order.deleteMany({
@@ -144,7 +152,7 @@ export class DydxWorker {
             const order = await this.prisma.order.findFirst({
                 where: { price, side: 'BID', marketId: market.id },
             })
-            if (!order) {
+            if (order == null) {
                 await this.prisma.order.create({
                     data: {
                         price,
@@ -177,7 +185,7 @@ export class DydxWorker {
             const order = await this.prisma.order.findFirst({
                 where: { price, side: 'ASK', marketId: market.id },
             })
-            if (!order) {
+            if (order == null) {
                 await this.prisma.order.create({
                     data: {
                         price,
@@ -204,7 +212,9 @@ export class DydxWorker {
         }
     }
 
-    private async handleAccountsWSMessage(data: WebSocketMessage) {
+    private async handleAccountsWSMessage(
+        data: WebSocketMessage
+    ): Promise<void> {
         if (data.type === 'subscribed') {
             await this.prisma.position.deleteMany({
                 where: { accountId: this.account.id },
@@ -283,7 +293,7 @@ export class DydxWorker {
             accounts?: AccountResponseObject[]
         }
 
-        if (accounts) {
+        if (accounts != null) {
             await this.prisma.account.update({
                 where: {
                     id: accounts[0].id,
@@ -294,7 +304,7 @@ export class DydxWorker {
             })
         }
 
-        if (orders) {
+        if (orders != null) {
             for (const order of orders) {
                 if (
                     order.status === OrderStatus.CANCELED ||
@@ -334,7 +344,7 @@ export class DydxWorker {
             }
         }
 
-        if (positions) {
+        if (positions != null) {
             for (const position of positions) {
                 const market = await this.prisma.market.findFirstOrThrow({
                     where: {
@@ -370,7 +380,7 @@ export class DydxWorker {
         }
     }
 
-    private async handleTradesWSMessage(data: WebSocketMessage) {
+    private async handleTradesWSMessage(data: WebSocketMessage): Promise<void> {
         const MAX_SIZE = 100
 
         const { trades } = data.contents as {
@@ -381,7 +391,7 @@ export class DydxWorker {
             where: { name: data.id },
         })
 
-        if (!market) return
+        if (market == null) return
 
         if (data.type === 'subscribed') {
             await this.prisma.trade.deleteMany({

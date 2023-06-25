@@ -1,13 +1,16 @@
-import { ApiKeyCredentials, DydxClient } from '@dydxprotocol/v3-client'
+import {
+    type ApiKeyCredentials,
+    type DydxClient,
+} from '@dydxprotocol/v3-client'
 import { RequestMethod } from '@dydxprotocol/v3-client/build/src/lib/axios'
-import { Market } from '@prisma/client'
-import { Queue } from 'bullmq'
+import { type Market } from '@prisma/client'
+import { type Queue } from 'bullmq'
 import WebSocket from 'ws'
 
-import { WebSocketMessage } from './types'
+import { type WebSocketMessage } from './types'
 
 export class DydxWebSocket {
-    private ws: WebSocket
+    private readonly ws: WebSocket
 
     constructor(
         wsHost: string,
@@ -47,8 +50,9 @@ export class DydxWebSocket {
         this.ws.on('message', async (rawData) => {
             const data = JSON.parse(rawData.toString()) as WebSocketMessage
 
-            if (data.channel) {
-                queue.add(data.channel, data, {
+            // TODO: check if data.channel can be undefined or empty string
+            if (data.channel !== '') {
+                await queue.add(data.channel, data, {
                     removeOnComplete: true,
                     attempts: 2,
                     backoff: {
@@ -64,8 +68,8 @@ export class DydxWebSocket {
         })
     }
 
-    subscribeOrderbook(...markets: Market[]) {
-        const sendOrderbookSubscription = () => {
+    subscribeOrderbook(...markets: Market[]): void {
+        const sendOrderbookSubscription = (): void => {
             for (const market of markets) {
                 const orderbookMessage = {
                     type: 'subscribe',
@@ -84,8 +88,8 @@ export class DydxWebSocket {
         }
     }
 
-    subscribeTrades(...markets: Market[]) {
-        const sendTradesSubscription = () => {
+    subscribeTrades(...markets: Market[]): void {
+        const sendTradesSubscription = (): void => {
             for (const market of markets) {
                 const tradesMessage = {
                     type: 'subscribe',

@@ -5,5 +5,5 @@ export interface CointResult {
     criticalValue: number
     hedgeRatio: number
     zeroCrossing: number
-    zscoreList: (number | null)[]
+    zscoreList: Array<number | null>
 }

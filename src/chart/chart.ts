@@ -1,14 +1,14 @@
-import { PrismaClient } from '@prisma/client'
-import { ChartConfiguration } from 'chart.js'
+import { type PrismaClient } from '@prisma/client'
+import { type ChartConfiguration } from 'chart.js'
 import { access, mkdir, readFile, writeFile } from 'fs/promises'
 import Handlebars from 'handlebars'
 
-import { BacktestSummary } from '../backtest/types'
+import { type BacktestSummary } from '../backtest/types'
 
 export class Chart {
     constructor(public readonly prisma: PrismaClient) {}
 
-    async backtestChart(backtestSummary: BacktestSummary) {
+    async backtestChart(backtestSummary: BacktestSummary): Promise<void> {
         const {
             marketA,
             marketB,
@@ -152,7 +152,7 @@ export class Chart {
         )
     }
 
-    private async createChartDirectory() {
+    private async createChartDirectory(): Promise<void> {
         try {
             await access('charts')
         } catch (error) {

@@ -1,22 +1,25 @@
-import Dockerode, { Container, ContainerCreateOptions } from 'dockerode'
+import Dockerode, {
+    type Container,
+    type ContainerCreateOptions,
+} from 'dockerode'
 import { dirname, resolve } from 'path'
 import { fileURLToPath } from 'url'
 
-import { DockerError, RunOptions } from './types'
+import { type DockerError, type RunOptions } from './types'
 
 export class Docker {
-    private docker: Dockerode
-    private containers: Container[] = []
+    private readonly docker: Dockerode
+    private readonly containers: Container[] = []
 
     constructor() {
         this.docker = new Dockerode()
     }
 
-    public async startAPIServer(options: RunOptions) {
-        const __filename = fileURLToPath(import.meta.url)
-        const __dirname = dirname(__filename)
+    public async startAPIServer(options: RunOptions): Promise<void> {
+        const FILE_NAME = fileURLToPath(import.meta.url)
+        const DIR_NAME = dirname(FILE_NAME)
 
-        const hostPythonPath = resolve(__dirname, '../../python')
+        const hostPythonPath = resolve(DIR_NAME, '../../python')
         const containerName = 'dydx-api-server'
 
         if (options.fresh) await this.removeContainer(containerName)
@@ -56,7 +59,7 @@ export class Docker {
         this.containers.push(container)
     }
 
-    public async startPostgres(options: RunOptions) {
+    public async startPostgres(options: RunOptions): Promise<void> {
         const containerName = 'dydx-postgres'
 
         if (options.fresh) await this.removeContainer(containerName)
@@ -86,7 +89,7 @@ export class Docker {
         this.containers.push(container)
     }
 
-    public async startRedis(options: RunOptions) {
+    public async startRedis(options: RunOptions): Promise<void> {
         const containerName = 'dydx-redis'
 
         if (options.fresh) await this.removeContainer(containerName)
@@ -112,7 +115,7 @@ export class Docker {
         this.containers.push(container)
     }
 
-    public async startAll(options: RunOptions) {
+    public async startAll(options: RunOptions): Promise<void> {
         await this.startAPIServer(options)
         await this.startPostgres(options)
         await this.startRedis(options)
@@ -121,31 +124,42 @@ export class Docker {
     private async findOrCreateContainer(
         name: string,
         createOptions: ContainerCreateOptions
-    ) {
+    ): Promise<Dockerode.Container> {
         const { container } = await this.findContainer(name)
-        if (container) return container
+        if (container != null) return container
 
         try {
             return await this.docker.createContainer(createOptions)
         } catch (e) {
             if ((e as DockerError).statusCode !== 404) throw e
 
-            const pullStream = await this.docker.pull(createOptions.Image!)
-            await new Promise((resolve) =>
+            if (createOptions.Image === undefined) {
+                throw new Error('Docker image is required')
+            }
+
+            const pullStream = await this.docker.pull(createOptions.Image)
+            await new Promise((resolve) => {
                 this.docker.modem.followProgress(pullStream, resolve)
-            )
+            })
 
             return await this.docker.createContainer(createOptions)
         }
     }
 
-    private async findContainer(name: string) {
+    private async findContainer(name: string): Promise<{
+        container: Dockerode.Container | null
+        image: string | null
+    }> {
         const containers = await this.docker.listContainers({
             all: true,
             filters: { name: [name] },
         })
 
-        if (containers.length === 0) return {}
+        if (containers.length === 0)
+            return {
+                container: null,
+                image: null,
+            }
 
         if (containers.length > 1) {
             throw new Error(`multiple containers with name ${name} found`)
@@ -157,14 +171,16 @@ export class Docker {
         }
     }
 
-    private async removeContainer(name: string) {
+    private async removeContainer(name: string): Promise<void> {
         const { container } = await this.findContainer(name)
-        if (!container) return
+        if (container == null) return
         await container.remove({ force: true })
     }
 
-    public async stopAll(removeContainers = false) {
-        const containerProcessor = async (container: Container) => {
+    public async stopAll(removeContainers = false): Promise<void> {
+        const containerProcessor = async (
+            container: Container
+        ): Promise<void> => {
             try {
                 await container.stop()
             } catch (e) {

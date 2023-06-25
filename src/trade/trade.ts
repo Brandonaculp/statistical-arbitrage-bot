@@ -1,15 +1,22 @@
 import {
-    Market as DydxMarket,
+    type Market as DydxMarket,
+    type OrderResponseObject,
     OrderSide,
     OrderType,
     TimeInForce,
 } from '@dydxprotocol/v3-client'
 import { select } from '@inquirer/prompts'
-import { Market, Order, PrismaClient } from '@prisma/client'
+import {
+    type ActiveOrder,
+    type Market,
+    type Order,
+    type Position,
+    type PrismaClient,
+} from '@prisma/client'
 
-import { Dydx } from '../dydx/dydx'
-import { Statistics } from '../statistics/statistics'
-import { TradingConfig } from '../types'
+import { type Dydx } from '../dydx/dydx'
+import { type Statistics } from '../statistics/statistics'
+import { type TradingConfig } from '../types'
 import { sleep } from '../utils'
 import { TradeState } from './types'
 
@@ -23,12 +30,16 @@ export class Trade {
         public readonly config: TradingConfig
     ) {}
 
-    async start() {
+    async start(): Promise<void> {
         this.state = TradeState.ManageNewTrades
         const { positiveMarket, negativeMarket } = await this.selectMarkets()
 
-        this.dydx.ws!.subscribeOrderbook(positiveMarket, negativeMarket)
-        this.dydx.ws!.subscribeTrades(positiveMarket, negativeMarket)
+        if (this.dydx.ws === undefined) {
+            throw new Error('Dydx websocket is not defined')
+        }
+
+        this.dydx.ws.subscribeOrderbook(positiveMarket, negativeMarket)
+        this.dydx.ws.subscribeTrades(positiveMarket, negativeMarket)
         while (true) {
             await sleep(3000)
             const positionA = await this.getOpenPosition(positiveMarket)
@@ -36,8 +47,8 @@ export class Trade {
             const activeOrdersA = await this.getActiveOrders(positiveMarket)
             const activeOrdersB = await this.getActiveOrders(negativeMarket)
             const isManageNewTrades = [
-                !!positionA,
-                !!positionB,
+                !(positionA == null),
+                !(positionB == null),
                 activeOrdersA.length > 0,
                 activeOrdersB.length > 0,
             ].every((v) => !v)
@@ -68,8 +79,12 @@ export class Trade {
         side: OrderSide,
         type: 'MARKET' | 'LIMIT',
         stopLoss: number
-    ) {
-        //TODO: stop loss for limit order
+    ): Promise<void> {
+        if (this.dydx.account === undefined) {
+            throw new Error('Dydx account is not defined')
+        }
+
+        // TODO: stop loss for limit order
         if (type === 'LIMIT') {
             await this.dydx.client.private.createOrder(
                 {
@@ -80,7 +95,7 @@ export class Trade {
                     timeInForce: TimeInForce.GTT,
                     price: String(price),
                     postOnly: false,
-                    //TODO: set limit fee
+                    // TODO: set limit fee
                     limitFee: '0',
                     expiration: new Date(
                         // 24 hours from now
@@ -88,7 +103,7 @@ export class Trade {
                     ).toISOString(),
                     reduceOnly: false,
                 },
-                this.dydx.account!.positionId
+                this.dydx.account.positionId
             )
         } else {
             await this.dydx.client.private.createOrder(
@@ -106,7 +121,7 @@ export class Trade {
                     ).toISOString(),
                     reduceOnly: false,
                 },
-                this.dydx.account!.positionId
+                this.dydx.account.positionId
             )
 
             await this.dydx.client.private.createOrder(
@@ -115,7 +130,7 @@ export class Trade {
                     side:
                         side === OrderSide.BUY ? OrderSide.SELL : OrderSide.BUY,
                     size: String(size),
-                    // @ts-ignore
+                    // @ts-expect-error: STOP_MARKET is not assignable to type
                     type: 'STOP_MARKET',
                     timeInForce: TimeInForce.FOK,
                     price: '1',
@@ -128,12 +143,15 @@ export class Trade {
                     ).toISOString(),
                     reduceOnly: true,
                 },
-                this.dydx.account!.positionId
+                this.dydx.account.positionId
             )
         }
     }
 
-    async initializeOrderExecution(market: Market, side: OrderSide) {
+    async initializeOrderExecution(
+        market: Market,
+        side: OrderSide
+    ): Promise<boolean> {
         const orders = await this.prisma.order.findMany({
             where: {
                 marketId: market.id,
@@ -145,9 +163,9 @@ export class Trade {
             side
         )
 
-        //TODO: return order id
+        // TODO: return order id
         if (quantity > 0) {
-            //TODO: limit order
+            // TODO: limit order
             await this.placeOrder(
                 market,
                 quantity,
@@ -163,7 +181,17 @@ export class Trade {
         return false
     }
 
-    async placeMarketCloseOrder(market: Market, side: OrderSide, size: number) {
+    async placeMarketCloseOrder(
+        market: Market,
+        side: OrderSide,
+        size: number
+    ): Promise<{
+        order: OrderResponseObject
+    }> {
+        if (this.dydx.account === undefined) {
+            throw new Error('Dydx account is not defined')
+        }
+
         return await this.dydx.client.private.createOrder(
             {
                 market: market.name as DydxMarket,
@@ -171,7 +199,7 @@ export class Trade {
                 size: String(size),
                 type: OrderType.MARKET,
                 timeInForce: TimeInForce.FOK,
-                //TODO: set price
+                // TODO: set price
                 price: '1',
                 postOnly: false,
                 limitFee: '0',
@@ -180,11 +208,15 @@ export class Trade {
                 ).toISOString(),
                 reduceOnly: true,
             },
-            this.dydx.account!.positionId
+            this.dydx.account.positionId
         )
     }
 
-    async closeAllPositions(...markets: Market[]) {
+    async closeAllPositions(...markets: Market[]): Promise<TradeState> {
+        if (this.dydx.account === undefined) {
+            throw new Error('Dydx account is not defined')
+        }
+
         for (const market of markets) {
             await this.dydx.client.private.cancelActiveOrders(
                 market.name as DydxMarket
@@ -193,12 +225,12 @@ export class Trade {
             const position = await this.prisma.position.findFirst({
                 where: {
                     marketId: market.id,
-                    accountId: this.dydx.account!.id,
+                    accountId: this.dydx.account.id,
                 },
             })
 
-            if (position) {
-                this.placeMarketCloseOrder(
+            if (position != null) {
+                await this.placeMarketCloseOrder(
                     market,
                     position.side === 'LONG' ? OrderSide.SELL : OrderSide.BUY,
                     position.size
@@ -214,75 +246,78 @@ export class Trade {
         marketB: Market,
         sideA: OrderSide,
         sideB: OrderSide
-    ) {
-        const { zscore, signalSignPositive } = await this.getLatestZscore(
-            marketA,
-            marketB,
-            sideA,
-            sideB
-        )
+    ): Promise<TradeState> {
+        // const { zscore, signalSignPositive } = await this.getLatestZscore(
+        //     marketA,
+        //     marketB,
+        //     sideA,
+        //     sideB
+        // )
 
-        if (Math.abs(zscore) > this.config.triggerThresh) {
-            //TODO: what is signalPositiveMarket and signalNegativeMarket
-            const signalPositiveMarket = marketA
-            const signalNegativeMarket = marketB
+        // if (Math.abs(zscore) > this.config.triggerThresh) {
+        //     // TODO: what is signalPositiveMarket and signalNegativeMarket
+        //     const signalPositiveMarket = marketA
+        //     const signalNegativeMarket = marketB
 
-            const { avgSize: avgSizeP, latestPrice: latestPriceP } =
-                await this.getMarketTradeLiquidity(signalPositiveMarket)
-            const { avgSize: avgSizeN, latestPrice: latestPriceN } =
-                await this.getMarketTradeLiquidity(signalNegativeMarket)
+        //     const { avgSize: avgSizeP, latestPrice: latestPriceP } =
+        //         await this.getMarketTradeLiquidity(signalPositiveMarket)
+        //     const { avgSize: avgSizeN, latestPrice: latestPriceN } =
+        //         await this.getMarketTradeLiquidity(signalNegativeMarket)
 
-            let longMarket: Market
-            let shortMarket: Market
-            let avgSizeLong: number
-            let avgSizeShort: number
-            let latestPriceLong: number
-            let latestPriceShort: number
+        //     let longMarket: Market
+        //     let shortMarket: Market
+        //     let avgSizeLong: number
+        //     let avgSizeShort: number
+        //     let latestPriceLong: number
+        //     let latestPriceShort: number
 
-            if (signalSignPositive) {
-                longMarket = signalPositiveMarket
-                shortMarket = signalNegativeMarket
-                avgSizeLong = avgSizeP
-                avgSizeShort = avgSizeN
-                latestPriceLong = latestPriceP
-                latestPriceShort = latestPriceN
-            } else {
-                longMarket = signalNegativeMarket
-                shortMarket = signalPositiveMarket
-                avgSizeLong = avgSizeN
-                avgSizeShort = avgSizeP
-                latestPriceLong = latestPriceN
-                latestPriceShort = latestPriceP
-            }
+        //     if (signalSignPositive) {
+        //         longMarket = signalPositiveMarket
+        //         shortMarket = signalNegativeMarket
+        //         avgSizeLong = avgSizeP
+        //         avgSizeShort = avgSizeN
+        //         latestPriceLong = latestPriceP
+        //         latestPriceShort = latestPriceN
+        //     } else {
+        //         longMarket = signalNegativeMarket
+        //         shortMarket = signalPositiveMarket
+        //         avgSizeLong = avgSizeN
+        //         avgSizeShort = avgSizeP
+        //         latestPriceLong = latestPriceN
+        //         latestPriceShort = latestPriceP
+        //     }
 
-            const tradableCapital = await this.getTradableCapital()
-            const capitalLong = tradableCapital * 0.5
-            const capitalShort = tradableCapital - capitalLong
-            const initialFillTargetLongUsd = avgSizeLong * latestPriceLong
-            const initialFillTargetShortUsd = avgSizeShort * latestPriceShort
-            const initialCapitalInjectionUsd = Math.min(
-                initialFillTargetLongUsd,
-                initialFillTargetShortUsd
-            )
+        //     const tradableCapital = await this.getTradableCapital()
+        //     const capitalLong = tradableCapital * 0.5
+        //     const capitalShort = tradableCapital - capitalLong
+        //     const initialFillTargetLongUsd = avgSizeLong * latestPriceLong
+        //     const initialFillTargetShortUsd = avgSizeShort * latestPriceShort
+        //     const initialCapitalInjectionUsd = Math.min(
+        //         initialFillTargetLongUsd,
+        //         initialFillTargetShortUsd
+        //     )
 
-            let initialCapitalUsd: number
-            if (this.config.limitOrder) {
-                initialCapitalUsd =
-                    initialCapitalInjectionUsd > capitalLong
-                        ? capitalLong
-                        : initialCapitalInjectionUsd
-            } else {
-                initialCapitalUsd = capitalLong
-            }
+        //     let initialCapitalUsd: number
+        //     if (this.config.limitOrder === true) {
+        //         initialCapitalUsd =
+        //             initialCapitalInjectionUsd > capitalLong
+        //                 ? capitalLong
+        //                 : initialCapitalInjectionUsd
+        //     } else {
+        //         initialCapitalUsd = capitalLong
+        //     }
 
-            const remainingCapitalLong = capitalLong
-            const remainingCapitalShort = capitalShort
-        }
+        //     const remainingCapitalLong = capitalLong
+        //     const remainingCapitalShort = capitalShort
+        // }
 
         return TradeState.ManageNewTrades
     }
 
-    async getMarketTradeLiquidity(market: Market) {
+    async getMarketTradeLiquidity(market: Market): Promise<{
+        avgSize: number
+        latestPrice: number
+    }> {
         const trades = await this.prisma.trade.findMany({
             where: {
                 marketId: market.id,
@@ -295,7 +330,7 @@ export class Trade {
 
         const sum = trades.reduce((acc, trade) => acc + trade.size, 0)
         const avgSize = sum / trades.length
-        //TODO: check whether the first item contains the latest price
+        // TODO: check whether the first item contains the latest price
         const latestPrice = trades[0].price
 
         return { avgSize, latestPrice }
@@ -306,7 +341,10 @@ export class Trade {
         marketB: Market,
         sideA: OrderSide,
         sideB: OrderSide
-    ) {
+    ): Promise<{
+        signalSignPositive: boolean
+        zscore: number
+    }> {
         const ordersA = await this.prisma.order.findMany({
             where: {
                 marketId: marketA.id,
@@ -371,14 +409,22 @@ export class Trade {
         }
     }
 
-    getTradeDetails(orders: Order[], side: OrderSide) {
+    getTradeDetails(
+        orders: Order[],
+        side: OrderSide
+    ): {
+        midPrice: number
+        stopLoss: number
+        quantity: number
+    } {
+        // TODO: sort
         const bidOrders = orders
             .filter((order) => order.side === 'BID')
-            .sort()
+            // .sort()
             .reverse()
-        const askOrders = orders.filter((order) => order.side === 'ASK').sort()
+        const askOrders = orders.filter((order) => order.side === 'ASK') // .sort()
 
-        if (bidOrders.length && askOrders.length) {
+        if (bidOrders.length > 0 && askOrders.length > 0) {
             const nearestAsk = askOrders[0]
             const nearestBid = bidOrders[0]
 
@@ -405,46 +451,61 @@ export class Trade {
         throw new Error('one or both of the bid and ask orders are empty')
     }
 
-    async getOpenPosition(market: Market) {
+    async getOpenPosition(market: Market): Promise<Position | null> {
+        if (this.dydx.account === undefined) {
+            throw new Error('Dydx account is not defined')
+        }
+
         const positon = await this.prisma.position.findFirst({
             where: {
                 marketId: market.id,
-                accountId: this.dydx.account!.id,
+                accountId: this.dydx.account.id,
             },
         })
 
         return positon
     }
 
-    async getActiveOrders(market: Market) {
+    async getActiveOrders(market: Market): Promise<ActiveOrder[]> {
+        if (this.dydx.account === undefined) {
+            throw new Error('Dydx account is not defined')
+        }
+
         const activeOrders = await this.prisma.activeOrder.findMany({
             where: {
                 marketId: market.id,
-                accountId: this.dydx.account!.id,
+                accountId: this.dydx.account.id,
             },
         })
 
         return activeOrders
     }
 
-    async getTradableCapital() {
+    async getTradableCapital(): Promise<number> {
+        if (this.dydx.account === undefined) {
+            throw new Error('Dydx account is not defined')
+        }
+
         const { quoteBalance } = await this.prisma.account.findFirstOrThrow({
             where: {
-                id: this.dydx.account!.id,
+                id: this.dydx.account.id,
             },
             select: {
                 quoteBalance: true,
             },
         })
 
-        if (!quoteBalance) return 0
+        if (quoteBalance === null) return 0
 
         return quoteBalance > this.config.tradableCapital
             ? this.config.tradableCapital
             : quoteBalance
     }
 
-    private async selectMarkets() {
+    private async selectMarkets(): Promise<{
+        positiveMarket: Market
+        negativeMarket: Market
+    }> {
         const markets = await this.prisma.market.findMany()
         const positiveMarket = await select<Market>({
             message: 'Select singal positive market',

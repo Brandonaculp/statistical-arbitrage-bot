@@ -1,13 +1,13 @@
-import { Market } from '@prisma/client'
+import { type Market } from '@prisma/client'
 
-export type BacktestData = {
+export type BacktestData = Array<{
     zscore: number
     marketAPrice: number
     marketBPrice: number
     zscoreSign: 1 | -1
-}[]
+}>
 
-export type BacktestResult = {
+export type BacktestResult = Array<{
     trigger: number
     slippage: number
 
@@ -26,7 +26,7 @@ export type BacktestResult = {
     shortAt: number
     closeShortAt: number
     shortReturn: number
-}[]
+}>
 
 export interface BacktestSummary {
     marketA: Market

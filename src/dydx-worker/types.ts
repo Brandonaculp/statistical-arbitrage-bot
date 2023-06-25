@@ -1,8 +1,9 @@
-import { MarketResponseObject } from '@dydxprotocol/v3-client'
+import { type MarketResponseObject } from '@dydxprotocol/v3-client'
 
-export interface MarketsResponseObject {
-    [market: string]: Partial<MarketResponseObject>
-}
+export type MarketsResponseObject = Record<
+    string,
+    Partial<MarketResponseObject>
+>
 
 interface OrderbookResponseOrder {
     price: string

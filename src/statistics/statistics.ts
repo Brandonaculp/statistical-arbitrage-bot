@@ -1,7 +1,7 @@
-import axios, { AxiosInstance } from 'axios'
+import axios, { type AxiosInstance } from 'axios'
 
-import { TradingConfig } from '../types'
-import { CointResult } from './types'
+import { type TradingConfig } from '../types'
+import { type CointResult } from './types'
 
 export class Statistics {
     private readonly axiosInstance: AxiosInstance
@@ -16,7 +16,10 @@ export class Statistics {
         })
     }
 
-    async calculateCoint(series1: number[], series2: number[]) {
+    async calculateCoint(
+        series1: number[],
+        series2: number[]
+    ): Promise<CointResult> {
         const coint = await this.axiosInstance.post<CointResult>(
             '/calculate_cointegration',
             {

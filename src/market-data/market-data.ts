@@ -1,15 +1,15 @@
 import {
     CandleResolution,
-    CandleResponseObject,
-    Market as DydxMarket,
+    type CandleResponseObject,
+    type Market as DydxMarket,
 } from '@dydxprotocol/v3-client'
-import { Market, PrismaClient } from '@prisma/client'
+import { type Market, type PrismaClient } from '@prisma/client'
 import dayjs from 'dayjs'
 
-import { BacktestData } from '../backtest/types'
-import { Dydx } from '../dydx/dydx'
-import { Statistics } from '../statistics/statistics'
-import { BacktestConfig, TradingConfig } from '../types'
+import { type BacktestData } from '../backtest/types'
+import { type Dydx } from '../dydx/dydx'
+import { type Statistics } from '../statistics/statistics'
+import { type BacktestConfig, type TradingConfig } from '../types'
 
 export class MarketData {
     constructor(
@@ -20,7 +20,7 @@ export class MarketData {
         public readonly backtestConfig?: BacktestConfig
     ) {}
 
-    async updateMarkets() {
+    async updateMarkets(): Promise<void> {
         const marketsCount = await this.prisma.market.count()
 
         if (marketsCount > 0) return
@@ -36,7 +36,7 @@ export class MarketData {
         })
     }
 
-    async storePairs() {
+    async storePairs(): Promise<void> {
         const pairsCount = await this.prisma.pair.count()
 
         if (pairsCount > 0) return
@@ -50,7 +50,9 @@ export class MarketData {
             for (const marketB of markets) {
                 if (marketA.id === marketB.id) continue
 
-                const unique = [marketA.id, marketB.id].sort().join('-')
+                const unique = [marketA.id, marketB.id]
+                    .sort((a, b) => a - b)
+                    .join('-')
                 if (included[unique]) continue
                 included[unique] = true
 
@@ -64,7 +66,10 @@ export class MarketData {
         }
     }
 
-    async getBacktestData(marketA: Market, marketB: Market) {
+    async getBacktestData(
+        marketA: Market,
+        marketB: Market
+    ): Promise<BacktestData> {
         const marketAPrices = await this.getMarketPrices(marketA)
         const marketBPrices = await this.getMarketPrices(marketB)
 
@@ -107,8 +112,8 @@ export class MarketData {
         return backtestData
     }
 
-    async getMarketPrices(market: Market) {
-        if (!this.backtestConfig) {
+    async getMarketPrices(market: Market): Promise<CandleResponseObject[]> {
+        if (this.backtestConfig == null) {
             throw new Error('Backtestconfig is not provided')
         }
 
@@ -140,7 +145,7 @@ export class MarketData {
         return result
     }
 
-    async updateMarketsPrices() {
+    async updateMarketsPrices(): Promise<void> {
         const markets = await this.prisma.market.findMany()
 
         for (const market of markets) {
@@ -166,9 +171,7 @@ export class MarketData {
         }
     }
 
-    async updateCointegratedPairs() {
-        const included: Record<string, boolean> = {}
-
+    async updateCointegratedPairs(): Promise<void> {
         const pairs = await this.prisma.pair.findMany({
             select: {
                 id: true,
@@ -224,7 +227,10 @@ export class MarketData {
         }
     }
 
-    async findCointegratedPair() {
+    async findCointegratedPair(): Promise<{
+        marketA: Market
+        marketB: Market
+    }> {
         const coint = await this.prisma.coint.findFirstOrThrow({
             where: {
                 cointFlag: true,
@@ -245,7 +251,7 @@ export class MarketData {
         return { marketA: coint.pair.marketA, marketB: coint.pair.marketB }
     }
 
-    private get unit() {
+    private get unit(): 'hours' | 'days' {
         switch (this.tradingConfig.timeFrame) {
             case CandleResolution.ONE_DAY:
                 return 'days'

@@ -1,5 +1,5 @@
-import { CandleResolution } from '@dydxprotocol/v3-client'
-import { Network } from '@prisma/client'
+import type { CandleResolution } from '@dydxprotocol/v3-client'
+import type { Network } from '@prisma/client'
 
 export interface ConnectionConfig {
     network: Network

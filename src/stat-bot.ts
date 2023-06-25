@@ -11,7 +11,11 @@ import { Dydx } from './dydx/dydx'
 import { MarketData } from './market-data/market-data'
 import { Statistics } from './statistics/statistics'
 import { Trade } from './trade/trade'
-import { BacktestConfig, StatBotConfig, TradingConfig } from './types'
+import {
+    type BacktestConfig,
+    type StatBotConfig,
+    type TradingConfig,
+} from './types'
 
 export class StatBot {
     public readonly docker: Docker
@@ -55,14 +59,14 @@ export class StatBot {
         )
     }
 
-    private async init(isBacktest: boolean) {
+    private async init(isBacktest: boolean): Promise<void> {
         await this.initDocker()
         await this.initPrisma()
         await this.initMarkets()
         if (!isBacktest) await this.initDydx()
     }
 
-    private async initDocker() {
+    private async initDocker(): Promise<void> {
         const spinner = ora({
             text: 'Starting docker containers',
             spinner: 'point',
@@ -78,7 +82,7 @@ export class StatBot {
         }
     }
 
-    private async initPrisma() {
+    private async initPrisma(): Promise<void> {
         const spinner = ora({
             text: 'Prisma database push',
             spinner: 'point',
@@ -95,7 +99,7 @@ export class StatBot {
         }
     }
 
-    private async initMarkets() {
+    private async initMarkets(): Promise<void> {
         const spinner = ora({
             text: 'Update markets',
             spinner: 'point',
@@ -112,7 +116,7 @@ export class StatBot {
         }
     }
 
-    private async initDydx() {
+    private async initDydx(): Promise<void> {
         const spinner = ora()
 
         try {
@@ -128,7 +132,7 @@ export class StatBot {
         tradingConfig: TradingConfig,
         backtestConfig?: BacktestConfig,
         fresh = false
-    ) {
+    ): Promise<StatBot> {
         const network = await select<Network>({
             message: 'Select network',
             choices: [
@@ -179,7 +183,7 @@ export class StatBot {
             fresh,
         })
 
-        await bot.init(!!backtestConfig)
+        await bot.init(!(backtestConfig == null))
 
         return bot
     }

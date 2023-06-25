@@ -8,7 +8,7 @@ import { StatBot } from './stat-bot'
 
 dotenv.config()
 
-yargs(hideBin(process.argv))
+void yargs(hideBin(process.argv))
     .command(
         'backtest',
         'run backtesting',

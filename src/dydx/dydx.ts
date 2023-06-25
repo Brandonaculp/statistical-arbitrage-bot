@@ -1,12 +1,12 @@
-import { ApiKeyCredentials, DydxClient, Market } from '@dydxprotocol/v3-client'
+import { type ApiKeyCredentials, DydxClient } from '@dydxprotocol/v3-client'
 import { Separator, input, password, select } from '@inquirer/prompts'
-import { Account, Network, PrismaClient } from '@prisma/client'
+import { type Account, Network, type PrismaClient } from '@prisma/client'
 import { Queue } from 'bullmq'
 import Web3 from 'web3'
 
 import { DydxWorker } from '../dydx-worker/dydx-worker'
 import { DydxWebSocket } from '../dydx-ws/dydx-ws'
-import { ConnectionConfig } from '../types'
+import { type ConnectionConfig } from '../types'
 
 const NETWORK_ID = { [Network.MAINNET]: 1, [Network.TESTNET]: 5 }
 
@@ -28,34 +28,38 @@ export class Dydx {
         this.networkId = NETWORK_ID[config.network]
 
         this.client = new DydxClient(config.httpHost, {
-            // @ts-ignore
+            // @ts-expect-error: web3 definition is wrong
             web3: this.web3,
             networkId: this.networkId,
         })
     }
 
-    public async init() {
+    public async init(): Promise<void> {
         await this.initAccount()
         this.initWebSocket()
     }
 
-    private initWebSocket() {
-        if (!this.apiKey) {
+    private initWebSocket(): void {
+        if (this.apiKey == null) {
             throw new Error('apiKey is not defined')
         }
 
         this.initQueue()
         this.initWorker()
 
+        if (this.queue === undefined) {
+            throw new Error('queue is not initialized')
+        }
+
         this.ws = new DydxWebSocket(
             this.config.wsHost,
             this.client,
             this.apiKey,
-            this.queue!
+            this.queue
         )
     }
 
-    private initQueue() {
+    private initQueue(): void {
         this.queue = new Queue('dydx-ws', {
             connection: {
                 host: 'localhost',
@@ -64,22 +68,22 @@ export class Dydx {
         })
     }
 
-    private initWorker() {
-        if (!this.account) {
+    private initWorker(): void {
+        if (this.account == null) {
             throw new Error('account is not initialized')
         }
 
         this.worker = new DydxWorker(this.prisma, this.account)
     }
 
-    private async initAccount() {
+    private async initAccount(): Promise<void> {
         const accounts = await this.prisma.account.findMany({
             where: {
                 network: this.config.network,
             },
         })
 
-        let selectedAccount = await select<Account | string>({
+        const selectedAccount = await select<Account | string>({
             message: 'Select account',
             choices: [
                 ...accounts.map((account) => ({
@@ -107,19 +111,22 @@ export class Dydx {
 
             this.client.apiKeyCredentials = this.apiKey
 
-            // @ts-ignore
+            // @ts-expect-error: starkPrivateKey is readonly
             this.client.starkPrivateKey = this.account.starkPrivateKey
         }
     }
 
-    private async createAccount() {
+    private async createAccount(): Promise<{
+        account: Account
+        apiKey: ApiKeyCredentials
+    }> {
         const name = await input({ message: 'Enter name' })
         const privateKey = await password({ message: 'Enter your private key' })
 
         const accountExists = await this.prisma.account.findFirst({
             where: { privateKey, network: this.config.network },
         })
-        if (accountExists) {
+        if (accountExists != null) {
             throw new Error(`account already exists: ${accountExists.name}`)
         }
 
@@ -146,7 +153,7 @@ export class Dydx {
             await this.client.onboarding.recoverDefaultApiCredentials(address)
 
         this.client.apiKeyCredentials = apiKey
-        // @ts-ignore
+        // @ts-expect-error: starkPrivateKey is readonly
         this.client.starkPrivateKey = keyPair.privateKey
 
         const {
