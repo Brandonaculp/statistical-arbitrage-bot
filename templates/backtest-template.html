@@ -13,96 +13,109 @@
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
         <script src="https://cdn.tailwindcss.com"></script>
+
+        <style>
+            .chart {
+                width: 100% !important;
+                height: 100% !important;
+            }
+        </style>
     </head>
     <body>
-        <div class="p-5">
-            <h3>{{marketA.name}} {{marketB.name}}</h3>
-        </div>
+        <h3 class="text-gray-700 text-center font-semibold p-3">
+            {{marketA.name}} {{marketB.name}}
+        </h3>
 
-        <div>
-            <canvas id="zscore-chart"></canvas>
-        </div>
+        <div class="flex flex-col lg:flex-row bg-red">
+            <div class="flex-1">
+                <canvas class="chart" id="zscore-chart"></canvas>
+            </div>
 
-        <div>
-            <canvas id="prices-chart"></canvas>
+            <div class="flex-1">
+                <canvas class="chart" id="prices-chart"></canvas>
+            </div>
         </div>
 
         <div id="backtest-summary"></div>
 
-        <div>
-            <div>
-                <p>Initial Long Capital</p>
-                <p>{{initialLongCapital}}</p>
+        <div class="m-3 flex gap-5">
+            <div class="flex flex-col gap-2">
+                <div>
+                    <p class="font-bold text-gray-700">Initial Long Capital</p>
+                    <p class="text-lg">{{initialLongCapital}}</p>
+                </div>
+
+                <div>
+                    <p class="font-bold text-gray-700">Initial Short Capital</p>
+                    <p class="text-lg">{{initialShortCapital}}</p>
+                </div>
+
+                <div>
+                    <p class="font-bold text-gray-700">Zscore Threshold</p>
+                    <p class="text-lg">{{triggerThresh}}</p>
+                </div>
+
+                <div>
+                    <p class="font-bold text-gray-700">Slippage Percent</p>
+                    <p class="text-lg">{{slippagePercent}}</p>
+                </div>
+
+                <div>
+                    <p class="font-bold text-gray-700">Long Profit</p>
+                    <p class="text-lg">{{longProfit}}</p>
+                </div>
+
+                <div>
+                    <p class="font-bold text-gray-700">Short Profit</p>
+                    <p class="text-lg">{{shortProfit}}</p>
+                </div>
+
+                <div>
+                    <p class="font-bold text-gray-700">Net Profit</p>
+                    <p class="text-lg">{{netProfit}}</p>
+                </div>
+
+                <div>
+                    <p class="font-bold text-gray-700">ROI</p>
+                    <p class="text-lg">{{roi}}</p>
+                </div>
             </div>
 
-            <div>
-                <p>Initial Short Capital</p>
-                <p>{{initialShortCapital}}</p>
-            </div>
+            <div class="flex flex-col gap-2">
+                <div>
+                    <p class="font-bold text-gray-700">Win Rate Long</p>
+                    <p class="text-lg">{{winRateLong}}</p>
+                </div>
 
-            <div>
-                <p>Zscore Threshold</p>
-                <p>{{triggerThresh}}</p>
-            </div>
+                <div>
+                    <p class="font-bold text-gray-700">Win Rate Short</p>
+                    <p class="text-lg">{{winRateShort}}</p>
+                </div>
 
-            <div>
-                <p>Slippage Percent</p>
-                <p>{{slippagePercent}}</p>
-            </div>
+                <div>
+                    <p class="font-bold text-gray-700">Avg Win Rate</p>
+                    <p class="text-lg">{{avgWinRate}}</p>
+                </div>
 
-            <div>
-                <p>Long Profit</p>
-                <p>{{longProfit}}</p>
-            </div>
+                <div>
+                    <p class="font-bold text-gray-700">Best Long</p>
+                    <p class="text-lg">{{bestLong}}</p>
+                </div>
 
-            <div>
-                <p>Short Profit</p>
-                <p>{{shortProfit}}</p>
-            </div>
+                <div>
+                    <p class="font-bold text-gray-700">Best Short</p>
+                    <p class="text-lg">{{bestShort}}</p>
+                </div>
 
-            <div>
-                <p>Net Profit</p>
-                <p>{{netProfit}}</p>
-            </div>
+                <div>
+                    <p class="font-bold text-gray-700">Worst Long</p>
+                    <p class="text-lg">{{worstLong}}</p>
+                </div>
 
-            <div>
-                <p>ROI</p>
-                <p>{{roi}}</p>
-            </div>
-
-            <div>
-                <p>Win Rate Long</p>
-                <p>{{winRateLong}}</p>
-            </div>
-
-            <div>
-                <p>Win Rate Short</p>
-                <p>{{winRateShort}}</p>
-            </div>
-
-            <div>
-                <p>Avg Win Rate</p>
-                <p>{{avgWinRate}}</p>
-            </div>
-
-            <div>
-                <p>Best Long</p>
-                <p>{{bestLong}}</p>
-            </div>
-
-            <div>
-                <p>Best Short</p>
-                <p>{{bestShort}}</p>
-            </div>
-
-            <div>
-                <p>Worst Long</p>
-                <p>{{worstLong}}</p>
-            </div>
-
-            <div>
-                <p>Worst Short</p>
-                <p>{{worstShort}}</p>
+                <div>
+                    <p class="font-bold text-gray-700">Worst Short</p>
+                    <p class="text-lg">{{worstShort}}</p>
+                </div>
             </div>
         </div>
 
@@ -146,6 +159,7 @@
                     'Short capital',
                 ],
                 pagination: true,
+                resizable: true,
                 data: backtestSummmaryGridData,
             }).render(document.getElementById('backtest-summary'))
         </script>
