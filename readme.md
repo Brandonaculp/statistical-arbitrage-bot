@@ -1,1 +1,0 @@
-## Statistical Arbitrage Bot
