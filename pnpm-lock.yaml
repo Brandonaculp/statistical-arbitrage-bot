@@ -13,6 +13,7 @@ importers:
       '@nestjs/config': ^3.0.0
       '@nestjs/core': ^10.0.0
       '@nestjs/jwt': ^10.1.0
+      '@nestjs/mapped-types': ^2.0.2
       '@nestjs/platform-express': ^10.0.0
       '@nestjs/schematics': ^10.0.0
       '@nestjs/testing': ^10.0.0
@@ -49,6 +50,7 @@ importers:
       '@nestjs/config': 3.0.0_ut2lz3i2emxvmaagk3nrd4vcuy
       '@nestjs/core': 10.0.3_qt7li3nwwshj34ys7443ufbxta
       '@nestjs/jwt': 10.1.0_@nestjs+common@10.0.3
+      '@nestjs/mapped-types': 2.0.2_7ng7as5pjtzlqmgsd2pvnfmsju
       '@nestjs/platform-express': 10.0.3_uw5udq5dia6g3eu27qypsmjr7q
       '@prisma/client': 5.0.0_prisma@5.0.0
       argon2: 0.30.3
@@ -81,9 +83,6 @@ importers:
       ts-node: 10.9.1_eusldyghqqa7ybpza2tam24c3e
       tsconfig-paths: 4.2.0
       typescript: 5.1.6
-
-  apps/cli:
-    specifiers: {}
 
   apps/ui:
     specifiers:
@@ -1572,6 +1571,25 @@ packages:
       '@nestjs/common': 10.0.3_j3td4gnlgk75ora6o6suo62byy
       '@types/jsonwebtoken': 9.0.2
       jsonwebtoken: 9.0.0
+    dev: false
+
+  /@nestjs/mapped-types/2.0.2_7ng7as5pjtzlqmgsd2pvnfmsju:
+    resolution: {integrity: sha512-V0izw6tWs6fTp9+KiiPUbGHWALy563Frn8X6Bm87ANLRuE46iuBMD5acKBDP5lKL/75QFvrzSJT7HkCbB0jTpg==}
+    peerDependencies:
+      '@nestjs/common': ^8.0.0 || ^9.0.0 || ^10.0.0
+      class-transformer: ^0.4.0 || ^0.5.0
+      class-validator: ^0.13.0 || ^0.14.0
+      reflect-metadata: ^0.1.12
+    peerDependenciesMeta:
+      class-transformer:
+        optional: true
+      class-validator:
+        optional: true
+    dependencies:
+      '@nestjs/common': 10.0.3_j3td4gnlgk75ora6o6suo62byy
+      class-transformer: 0.5.1
+      class-validator: 0.14.0
+      reflect-metadata: 0.1.13
     dev: false
 
   /@nestjs/platform-express/10.0.3_uw5udq5dia6g3eu27qypsmjr7q:

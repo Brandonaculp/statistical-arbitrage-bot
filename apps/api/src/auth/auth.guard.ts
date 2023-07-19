@@ -34,6 +34,10 @@ export class AuthGuard implements CanActivate {
         where: {
           id: payload.sub,
         },
+        include: {
+          apiKey: true,
+          starkKey: true,
+        },
       })) as Partial<User>;
 
       if (!user) return false;
