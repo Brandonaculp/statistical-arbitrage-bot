@@ -9,7 +9,7 @@
     "prisma:deploy": "prisma migrate deploy",
     "docker:rm": "docker compose rm -sfv",
     "docker:up": "docker compose up -d",
-    "docker:restart": "pnpm docker:rm && pnpm docker:up && sleep 1 && pnpm prisma:deploy",
+    "docker:restart": "pnpm docker:rm && pnpm docker:up && sleep 2 && pnpm prisma:deploy",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",

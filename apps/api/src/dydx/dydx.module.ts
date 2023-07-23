@@ -3,6 +3,7 @@ import { BullModule } from '@nestjs/bull';
 import { DydxService } from './dydx.service';
 import { DydxProcessor } from './dydx.processor';
 import { DydxWebSocketClient } from './dydx.websocket';
+import { DydxController } from './dydx.controller';
 
 @Module({
   imports: [
@@ -12,5 +13,6 @@ import { DydxWebSocketClient } from './dydx.websocket';
   ],
   providers: [DydxService, DydxProcessor, DydxWebSocketClient],
   exports: [DydxService],
+  controllers: [DydxController],
 })
 export class DydxModule {}
