@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DydxClient } from '@dydxprotocol/v3-client';
 import Web3 from 'web3';
+import { keyPair, apiKey } from 'temp-config';
 
 @Injectable()
 export class DydxService {
@@ -16,13 +17,15 @@ export class DydxService {
     );
     const client = new DydxClient(this.config.get('DYDX_HTTP_HOST') as string, {
       // @ts-expect-error: web3 version
-      web3: this.web3,
+      web3,
     });
     web3.eth.accounts.wallet.add(privateKey);
     const address = web3.eth.accounts.wallet[0].address;
 
     const { exists } = await client.public.doesUserExistWithAddress(address);
-    const keyPair = await client.onboarding.deriveStarkKey(address);
+
+    // TODO: eth_signTypedData
+    // const keyPair = await client.onboarding.deriveStarkKey(address);
 
     if (!exists) {
       await client.onboarding.createUser(
@@ -35,9 +38,10 @@ export class DydxService {
       created = true;
     }
 
-    const apiKey = await client.onboarding.recoverDefaultApiCredentials(
-      address,
-    );
+    // TODO: eth_signTypedData
+    // const apiKey = await client.onboarding.recoverDefaultApiCredentials(
+    //   address,
+    // );
 
     return {
       keyPair,
