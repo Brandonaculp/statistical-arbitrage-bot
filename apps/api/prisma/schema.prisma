@@ -33,3 +33,9 @@ model StarkKey {
   user                 User   @relation(fields: [userId], references: [id])
   userId               String @unique
 }
+
+model Market {
+  id         String @id @default(uuid())
+  name       String @unique
+  indexPrice Float
+}

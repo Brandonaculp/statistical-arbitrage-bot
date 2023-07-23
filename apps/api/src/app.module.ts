@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { BullModule } from '@nestjs/bull';
 import * as Joi from 'joi';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
@@ -15,6 +16,12 @@ const configSchema = Joi.object({
 
 @Module({
   imports: [
+    BullModule.forRoot({
+      redis: {
+        host: 'localhost',
+        port: 6379,
+      },
+    }),
     ConfigModule.forRoot({ validationSchema: configSchema, isGlobal: true }),
     PrismaModule,
     AuthModule,
