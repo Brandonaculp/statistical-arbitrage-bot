@@ -19,6 +19,17 @@ async function bootstrap() {
     .setTitle('Statistical Arbitrage Bot')
     .setDescription('Statistical Arbitrage Bot API description')
     .setVersion('0.0.1')
+    .addBearerAuth(
+      {
+        description: 'Please enter token in following format: Bearer <JWT>',
+        name: 'Authorization',
+        bearerFormat: 'Bearer',
+        scheme: 'Bearer',
+        type: 'http',
+        in: 'Header',
+      },
+      'access-token',
+    )
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
