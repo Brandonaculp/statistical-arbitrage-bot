@@ -1,8 +1,12 @@
+import { DydxClient } from '@dydxprotocol/v3-client';
+import { RequestMethod } from '@dydxprotocol/v3-client/build/src/lib/axios';
 import { InjectQueue } from '@nestjs/bull';
 import { OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Market } from '@prisma/client';
 import { Queue } from 'bull';
+import { PrismaService } from 'src/prisma/prisma.service';
+import Web3 from 'web3';
 import { WebSocket } from 'ws';
 
 export class DydxWebSocketClient implements OnModuleDestroy {
@@ -10,9 +14,10 @@ export class DydxWebSocketClient implements OnModuleDestroy {
 
   constructor(
     @InjectQueue('dydx') readonly dydxQueue: Queue,
-    config: ConfigService,
+    private config: ConfigService,
+    private prisma: PrismaService,
   ) {
-    this.ws = new WebSocket(config.get('DYDX_WS_HOST') as string);
+    this.ws = new WebSocket(this.config.get('DYDX_WS_HOST') as string);
 
     const marketsMessage = {
       type: 'subscribe',
@@ -73,6 +78,55 @@ export class DydxWebSocketClient implements OnModuleDestroy {
       sendTradesSubscription();
     } else {
       this.ws.on('open', sendTradesSubscription);
+    }
+  }
+
+  subscribeAccounts(userId: string) {
+    const sendAccountsSubscription = async () => {
+      const user = await this.prisma.user.findFirstOrThrow({
+        where: { id: userId },
+        include: {
+          apiKey: true,
+        },
+      });
+
+      const web3 = new Web3(
+        new Web3.providers.HttpProvider(
+          this.config.get('PROVIDER_URL') as string,
+        ),
+      );
+      const client = new DydxClient(
+        this.config.get('DYDX_HTTP_HOST') as string,
+        {
+          // @ts-expect-error: web3 version
+          web3,
+        },
+      );
+      web3.eth.accounts.wallet.add(user.privateKey);
+
+      const timestamp = new Date().toISOString();
+      const signature = client.private.sign({
+        requestPath: '/ws/accounts',
+        method: RequestMethod.GET,
+        isoTimestamp: timestamp,
+      });
+
+      const accountsMessage = {
+        type: 'subscribe',
+        channel: 'v3_accounts',
+        accountNumber: '0',
+        apiKey: user.apiKey?.key,
+        signature,
+        timestamp,
+        passphrase: user.apiKey?.passphrase,
+      };
+      this.ws.send(JSON.stringify(accountsMessage));
+    };
+
+    if (this.ws.readyState === WebSocket.OPEN) {
+      sendAccountsSubscription();
+    } else {
+      this.ws.on('open', sendAccountsSubscription);
     }
   }
 

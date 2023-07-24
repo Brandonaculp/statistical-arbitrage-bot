@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, PipeTransform } from '@nestjs/common';
 
 @Injectable()
 export class ChannelValidationPipe implements PipeTransform {
-  readonly allowedChannels = ['v3_orderbook', 'v3_trades'];
+  readonly allowedChannels = ['v3_orderbook', 'v3_trades', 'v3_accounts'];
 
   transform(value: any) {
     if (!this.isValidChannel(value)) {
