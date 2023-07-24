@@ -28,6 +28,8 @@ export class DydxService {
     // TODO: eth_signTypedData
     // const keyPair = await client.onboarding.deriveStarkKey(address);
 
+    client.apiKeyCredentials = apiKey;
+
     if (!exists) {
       const { account } = await client.onboarding.createUser(
         {

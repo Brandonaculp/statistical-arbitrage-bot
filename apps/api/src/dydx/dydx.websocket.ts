@@ -100,6 +100,7 @@ export class DydxWebSocketClient implements OnModuleDestroy {
         {
           // @ts-expect-error: web3 version
           web3,
+          apiKeyCredentials: user.apiKey || undefined,
         },
       );
       web3.eth.accounts.wallet.add(user.privateKey);

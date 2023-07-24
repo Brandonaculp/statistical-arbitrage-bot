@@ -88,7 +88,7 @@ enum ActiveOrderSide {
 }
 
 model Position {
-  id        String       @id
+  id        String       @id @default(uuid())
   size      Float
   side      PositionSide
   market    Market       @relation(fields: [marketId], references: [id])
