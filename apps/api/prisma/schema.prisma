@@ -18,7 +18,7 @@ model User {
 
 model Account {
   id           String        @id
-  quoteBalance Float
+  quoteBalance Float         @default(0)
   user         User          @relation(fields: [userId], references: [id])
   userId       String        @unique
   starkKey     StarkKey?

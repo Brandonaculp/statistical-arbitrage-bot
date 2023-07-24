@@ -9,7 +9,7 @@ export class DydxService {
   constructor(private config: ConfigService) {}
 
   async getOrCreateUser(privateKey: string) {
-    let userId: string;
+    let accountId: string;
     let created = false;
     const web3 = new Web3(
       new Web3.providers.HttpProvider(
@@ -37,10 +37,10 @@ export class DydxService {
         address,
       );
       created = true;
-      userId = account.id;
+      accountId = account.id;
     } else {
       const { account } = await client.private.getAccount(address);
-      userId = account.id;
+      accountId = account.id;
     }
 
     // TODO: eth_signTypedData
@@ -52,7 +52,7 @@ export class DydxService {
       keyPair,
       apiKey,
       created,
-      userId,
+      accountId,
     };
   }
 }

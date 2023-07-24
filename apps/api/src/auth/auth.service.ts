@@ -26,21 +26,27 @@ export class AuthService {
       throw new ForbiddenException('Credentials taken');
     }
 
-    const { keyPair, apiKey, userId } = await this.dydx.getOrCreateUser(
+    const { keyPair, apiKey, accountId } = await this.dydx.getOrCreateUser(
       privateKey,
     );
 
     const user = await this.prisma.user.create({
       data: {
-        id: userId,
         username,
         password: hashedPassword,
         privateKey,
         apiKey: {
           create: { ...apiKey },
         },
-        starkKey: {
-          create: { ...keyPair },
+        account: {
+          create: {
+            id: accountId,
+            starkKey: {
+              create: {
+                ...keyPair,
+              },
+            },
+          },
         },
       },
     });
