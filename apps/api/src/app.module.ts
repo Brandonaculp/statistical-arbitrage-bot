@@ -6,6 +6,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { DydxModule } from './dydx/dydx.module';
 import { UserModule } from './user/user.module';
+import { CointModule } from './coint/coint.module';
 
 const configSchema = Joi.object({
   DATABASE_URL: Joi.string().required(),
@@ -28,6 +29,7 @@ const configSchema = Joi.object({
     AuthModule,
     DydxModule,
     UserModule,
+    CointModule,
   ],
   controllers: [],
   providers: [],
