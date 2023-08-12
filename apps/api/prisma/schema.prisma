@@ -17,13 +17,11 @@ model User {
 }
 
 model Account {
-  id           String        @id
-  quoteBalance Float         @default(0)
-  user         User          @relation(fields: [userId], references: [id])
-  userId       String        @unique
+  id           String    @id
+  quoteBalance Float     @default(0)
+  user         User      @relation(fields: [userId], references: [id])
+  userId       String    @unique
   starkKey     StarkKey?
-  activeOrders ActiveOrder[]
-  positions    Position[]
 }
 
 model ApiKey {
@@ -42,62 +40,4 @@ model StarkKey {
   publicKeyYCoordinate String
   account              Account @relation(fields: [accountId], references: [id])
   accountId            String  @unique
-}
-
-model Market {
-  id           String        @id @default(uuid())
-  name         String        @unique
-  indexPrice   Float
-  activeOrders ActiveOrder[]
-  positions    Position[]
-}
-
-model ActiveOrder {
-  id            String            @id
-  size          Float
-  remainingSize Float
-  price         Float
-  type          ActiveOrderType
-  status        ActiveOrderStatus
-  side          ActiveOrderSide
-  market        Market            @relation(fields: [marketId], references: [id])
-  marketId      String
-  account       Account           @relation(fields: [accountId], references: [id])
-  accountId     String
-}
-
-enum ActiveOrderType {
-  MARKET
-  LIMIT
-  STOP
-  TRAILING_STOP
-  TAKE_PROFIT
-  LIQUIDATED
-  LIQUIDATION
-}
-
-enum ActiveOrderStatus {
-  PENDING
-  OPEN
-  UNTRIGGERED
-}
-
-enum ActiveOrderSide {
-  BUY
-  SELL
-}
-
-model Position {
-  id        String       @id @default(uuid())
-  size      Float
-  side      PositionSide
-  market    Market       @relation(fields: [marketId], references: [id])
-  marketId  String       @unique
-  account   Account      @relation(fields: [accountId], references: [id])
-  accountId String
-}
-
-enum PositionSide {
-  LONG
-  SHORT
 }
