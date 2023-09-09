@@ -7,6 +7,8 @@ import { AuthModule } from './auth/auth.module';
 import { DydxModule } from './dydx/dydx.module';
 import { UserModule } from './user/user.module';
 import { CointModule } from './coint/coint.module';
+import { BacktestCommand, TaskQuestions } from './backtest/backtest.command';
+import { BacktestModule } from './backtest/backtest.module';
 
 const configSchema = Joi.object({
   DATABASE_URL: Joi.string().required(),
@@ -30,6 +32,7 @@ const configSchema = Joi.object({
     DydxModule,
     UserModule,
     CointModule,
+    BacktestModule,
   ],
   controllers: [],
   providers: [],
