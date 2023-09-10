@@ -14,6 +14,11 @@ export class DydxService {
 
   constructor(private config: ConfigService<Config, true>) {}
 
+  getPublicClient() {
+    const client = new DydxClient(this.config.get('DYDX_HTTP_HOST'));
+    return client;
+  }
+
   getClient(privateKey: string) {
     if (this.clientCache.has(privateKey)) {
       return this.clientCache.get(privateKey) as {

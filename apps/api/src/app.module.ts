@@ -7,6 +7,7 @@ import { DydxModule } from './dydx/dydx.module';
 import { UserModule } from './user/user.module';
 import { CointModule } from './coint/coint.module';
 import { configSchema } from './config';
+import { MarketDataModule } from './market-data/market-data.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { configSchema } from './config';
     DydxModule,
     UserModule,
     CointModule,
+    MarketDataModule,
   ],
   controllers: [],
   providers: [],
