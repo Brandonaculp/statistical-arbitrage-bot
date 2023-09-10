@@ -12,7 +12,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
-    private config: ConfigService<Config>,
+    private config: ConfigService<Config, true>,
     private dydx: DydxService,
   ) {}
 
