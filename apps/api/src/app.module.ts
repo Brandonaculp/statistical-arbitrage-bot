@@ -1,22 +1,12 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { BullModule } from '@nestjs/bull';
-import * as Joi from 'joi';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { DydxModule } from './dydx/dydx.module';
 import { UserModule } from './user/user.module';
 import { CointModule } from './coint/coint.module';
-import { BacktestCommand, TaskQuestions } from './backtest/backtest.command';
-import { BacktestModule } from './backtest/backtest.module';
-
-const configSchema = Joi.object({
-  DATABASE_URL: Joi.string().required(),
-  PROVIDER_URL: Joi.string().required(),
-  DYDX_HTTP_HOST: Joi.string().required(),
-  DYDX_WS_HOST: Joi.string().required(),
-  JWT_SECRET: Joi.string().required(),
-});
+import { configSchema } from './config';
 
 @Module({
   imports: [
@@ -32,7 +22,6 @@ const configSchema = Joi.object({
     DydxModule,
     UserModule,
     CointModule,
-    BacktestModule,
   ],
   controllers: [],
   providers: [],

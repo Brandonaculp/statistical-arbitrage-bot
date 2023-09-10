@@ -7,13 +7,14 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { User } from '@prisma/client';
+import { Config } from 'src/config';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
   constructor(
     private jwt: JwtService,
-    private config: ConfigService,
+    private config: ConfigService<Config>,
     private prisma: PrismaService,
   ) {}
 

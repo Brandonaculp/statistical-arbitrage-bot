@@ -5,13 +5,14 @@ import { SigninDto, SignupDto } from './dto';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { DydxService } from 'src/dydx/dydx.service';
+import { Config } from 'src/config';
 
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
-    private config: ConfigService,
+    private config: ConfigService<Config>,
     private dydx: DydxService,
   ) {}
 

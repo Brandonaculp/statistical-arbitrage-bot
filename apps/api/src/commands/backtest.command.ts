@@ -3,27 +3,14 @@ import {
   Command,
   Option,
   InquirerService,
-  QuestionSet,
-  Question,
 } from 'nest-commander';
-
-@QuestionSet({ name: 'task-questions' })
-export class TaskQuestions {
-  @Question({
-    message: 'What task would you like to execute?',
-    name: 'task',
-  })
-  parseTask(val: string) {
-    return val;
-  }
-}
 
 @Command({
   name: 'backtest',
   description: 'Run a backtest',
 })
 export class BacktestCommand extends CommandRunner {
-  constructor(private inquirer: InquirerService) {
+  constructor(private readonly inquirer: InquirerService) {
     super();
   }
 

@@ -3,10 +3,11 @@ import { ConfigService } from '@nestjs/config';
 import { DydxClient } from '@dydxprotocol/v3-client';
 import Web3 from 'web3';
 import { keyPair, apiKey } from 'temp-config';
+import { Config } from 'src/config';
 
 @Injectable()
 export class DydxService {
-  constructor(private config: ConfigService) {}
+  constructor(private config: ConfigService<Config>) {}
 
   async getOrCreateUser(privateKey: string) {
     let accountId: string;
