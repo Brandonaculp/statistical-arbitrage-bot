@@ -31,6 +31,7 @@ importers:
       bull: ^4.10.4
       class-transformer: ^0.5.1
       class-validator: ^0.14.0
+      dayjs: ^1.11.9
       eslint: ^8.42.0
       eslint-config-prettier: ^8.8.0
       eslint-plugin-prettier: ^4.2.1
@@ -66,6 +67,7 @@ importers:
       bull: 4.10.4
       class-transformer: 0.5.1
       class-validator: 0.14.0
+      dayjs: 1.11.9
       joi: 17.9.2
       nest-commander: 3.12.0_uw5udq5dia6g3eu27qypsmjr7q
       reflect-metadata: 0.1.13
@@ -3777,6 +3779,10 @@ packages:
     engines: {node: '>=0.10'}
     dependencies:
       assert-plus: 1.0.0
+    dev: false
+
+  /dayjs/1.11.9:
+    resolution: {integrity: sha512-QvzAURSbQ0pKdIye2txOzNaHmxtUBXerpY0FJsFXUMKbIZeFm5ht1LS/jFsrncjnmtv8HsG0W2g6c0zUjZWmpA==}
     dev: false
 
   /debug/2.6.9:
