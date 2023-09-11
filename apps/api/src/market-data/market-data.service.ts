@@ -7,12 +7,19 @@ import {
   CandleResponseObject,
   Market,
 } from '@dydxprotocol/v3-client';
+import { CointService, CointegrationResult } from 'src/coint/coint.service';
+
+interface CointPair extends CointegrationResult {
+  marketA: string;
+  marketB: string;
+}
 
 @Injectable()
 export class MarketDataService {
   constructor(
     private readonly dydx: DydxService,
     private readonly config: ConfigService<Config, true>,
+    private readonly coint: CointService,
   ) {}
 
   async getTradeableMarkets() {
@@ -58,10 +65,15 @@ export class MarketDataService {
     return marketsPrices;
   }
 
+  extractClosePrices(candles: CandleResponseObject[]) {
+    return candles.map((candle) => Number(candle.close));
+  }
+
   async getCointegratedPairs() {
     const marketsPrices = await this.getMarketsPrices();
     const markets = Object.keys(marketsPrices);
 
+    const cointPairs: CointPair[] = [];
     const included: Record<string, boolean> = {};
 
     for (const marketA of markets) {
@@ -75,11 +87,21 @@ export class MarketDataService {
 
         const series1 = this.extractClosePrices(marketsPrices[marketA]);
         const series2 = this.extractClosePrices(marketsPrices[marketB]);
+        const cointResult = await this.coint.calculateCointegration(
+          series1,
+          series2,
+        );
+
+        cointPairs.push({
+          marketA,
+          marketB,
+          ...cointResult,
+        });
       }
     }
-  }
 
-  extractClosePrices(candles: CandleResponseObject[]) {
-    return candles.map((candle) => Number(candle.close));
+    cointPairs.sort((a, b) => b.zeroCrossing - a.zeroCrossing);
+
+    return cointPairs;
   }
 }

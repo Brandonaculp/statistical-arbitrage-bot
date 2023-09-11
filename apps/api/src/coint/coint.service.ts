@@ -1,14 +1,26 @@
 import { Injectable } from '@nestjs/common';
 import { spawn } from 'child_process';
 import { BufferList } from 'bl';
+import { ConfigService } from '@nestjs/config';
+import { Config } from 'src/config';
+
+export interface CointegrationResult {
+  cointFlag: boolean;
+  pValue: number;
+  tValue: number;
+  criticalValue: number;
+  hedgeRatio: number;
+  zeroCrossing: number;
+  zscoreList: number[];
+}
 
 @Injectable()
 export class CointService {
-  async calculateCointegration(
-    series1: number[],
-    series2: number[],
-    window: number,
-  ) {
+  constructor(private readonly config: ConfigService<Config, true>) {}
+
+  async calculateCointegration(series1: number[], series2: number[]) {
+    const window = this.config.get('Z_SCORE_WINDOW', { infer: true });
+
     const cointResultJson = await this.asyncSpawn('poetry', [
       'run',
       'python',
@@ -19,7 +31,7 @@ export class CointService {
       window.toString(),
     ]);
 
-    const cointResult = JSON.parse(cointResultJson);
+    const cointResult = JSON.parse(cointResultJson) as CointegrationResult;
     return cointResult;
   }
 
