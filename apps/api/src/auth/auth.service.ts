@@ -52,7 +52,8 @@ export class AuthService {
       },
     });
 
-    return this.signToken(user.id);
+    const access_token = await this.signToken(user.id);
+    return { user, access_token };
   }
 
   async signin({ username, password }: SigninDto) {
@@ -70,7 +71,8 @@ export class AuthService {
       throw new ForbiddenException('Credentials incorrect');
     }
 
-    return this.signToken(user.id);
+    const access_token = await this.signToken(user.id);
+    return { user, access_token };
   }
 
   private async signToken(userId: string) {
@@ -78,8 +80,6 @@ export class AuthService {
     const secret = this.config.get('JWT_SECRET');
     const token = await this.jwt.signAsync(payload, { secret });
 
-    return {
-      access_token: token,
-    };
+    return token;
   }
 }

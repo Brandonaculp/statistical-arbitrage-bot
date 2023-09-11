@@ -1,8 +1,8 @@
 import { Market } from '@dydxprotocol/v3-client';
 import { IsIn, IsNotEmpty, IsString } from 'class-validator';
-import { MarektsPricesDto } from './markets-prices.dto';
+import { MarketsPricesDto } from './markets-prices.dto';
 
-export class MarektPricesDto extends MarektsPricesDto {
+export class MarketPricesDto extends MarketsPricesDto {
   @IsString()
   @IsNotEmpty()
   @IsIn(Object.values(Market))

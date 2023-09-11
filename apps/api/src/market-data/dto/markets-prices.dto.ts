@@ -1,7 +1,7 @@
 import { CandleResolution } from '@dydxprotocol/v3-client';
 import { IsIn, IsNotEmpty, IsNumber, IsString, Max } from 'class-validator';
 
-export class MarektsPricesDto {
+export class MarketsPricesDto {
   @IsNumber()
   @IsNotEmpty()
   @Max(100)

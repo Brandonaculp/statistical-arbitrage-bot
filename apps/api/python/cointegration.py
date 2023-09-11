@@ -42,7 +42,8 @@ def calculate_cointegration(series1: List[float], series2: List[float], window: 
         "criticalValue": round(critical_value, 2),
         "hedgeRatio": round(hedge_ratio, 2),
         "zeroCrossing": zero_crossing,
-        "zscoreList": zscore_list.tolist()
+        "zscoreList": zscore_list.tolist(),
+        "spreadList": spread.tolist()
     }
 
 

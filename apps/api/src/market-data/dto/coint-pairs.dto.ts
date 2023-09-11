@@ -1,3 +1,3 @@
-import { MarektsPricesDto } from './markets-prices.dto';
+import { MarketsPricesDto } from './markets-prices.dto';
 
-export class CointPairsDto extends MarektsPricesDto {}
+export class CointPairsDto extends MarketsPricesDto {}

@@ -1,6 +1,6 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { MarketDataService } from './market-data.service';
-import { CointPairsDto, MarektPricesDto, MarektsPricesDto } from './dto';
+import { CointPairsDto, MarketPricesDto, MarketsPricesDto } from './dto';
 
 @Controller('market-data')
 export class MarketDataController {
@@ -12,12 +12,12 @@ export class MarketDataController {
   }
 
   @Get('market-prices')
-  marketPrices(@Query() dto: MarektPricesDto) {
+  marketPrices(@Query() dto: MarketPricesDto) {
     return this.marketData.getMarketPrices(dto);
   }
 
   @Get('markets-prices')
-  marketsPrices(@Query() dto: MarektsPricesDto) {
+  marketsPrices(@Query() dto: MarketsPricesDto) {
     return this.marketData.getMarketsPrices(dto);
   }
 

@@ -2,11 +2,19 @@ import { Injectable } from '@nestjs/common';
 import { DydxService } from 'src/dydx/dydx.service';
 import { CandleResponseObject } from '@dydxprotocol/v3-client';
 import { CointService, CointegrationResult } from 'src/coint/coint.service';
-import { CointPairsDto, MarektPricesDto, MarektsPricesDto } from './dto';
+import { CointPairsDto, MarketPricesDto, MarketsPricesDto } from './dto';
+import { ChartConfiguration } from 'chart.js';
 
 export interface CointPair extends CointegrationResult {
   marketA: string;
   marketB: string;
+}
+
+export interface PriceComparison {
+  marketA: string;
+  marketB: string;
+  marketACandles: CandleResponseObject[];
+  marketBCandles: CandleResponseObject[];
 }
 
 @Injectable()
@@ -31,7 +39,7 @@ export class MarketDataService {
     market,
     candleLimit,
     candleResolution,
-  }: MarektPricesDto) {
+  }: MarketPricesDto) {
     const client = this.dydx.getPublicClient();
 
     const { candles } = await client.public.getCandles({
@@ -45,7 +53,7 @@ export class MarketDataService {
     return candles;
   }
 
-  async getMarketsPrices(dto: MarektsPricesDto) {
+  async getMarketsPrices(dto: MarketsPricesDto) {
     const markets = await this.getTradeableMarkets();
 
     const marketsPrices: Record<string, CandleResponseObject[]> = {};
@@ -100,5 +108,129 @@ export class MarketDataService {
     cointPairs.sort((a, b) => b.zeroCrossing - a.zeroCrossing);
 
     return cointPairs;
+  }
+
+  getZscoreChartConfig(cointPair: CointPair) {
+    const { marketA, marketB, zscoreList } = cointPair;
+
+    const zscoreChartConfig: ChartConfiguration<'line'> = {
+      type: 'line',
+      data: {
+        labels: Array.from(Array(zscoreList.length).keys()),
+        datasets: [
+          {
+            label: 'zscore',
+            data: zscoreList,
+            pointStyle: false,
+            fill: true,
+            borderWidth: 2,
+            tension: 0.1,
+          },
+        ],
+      },
+      options: {
+        plugins: {
+          colors: {
+            enabled: true,
+          },
+          title: {
+            display: true,
+            text: `${marketA} - ${marketB}`,
+          },
+        },
+      },
+    };
+
+    return zscoreChartConfig;
+  }
+
+  getSpreadChartConfig(cointPair: CointPair) {
+    const { marketA, marketB, spreadList } = cointPair;
+
+    const spreadChartConfig: ChartConfiguration<'line'> = {
+      type: 'line',
+      data: {
+        labels: Array.from(Array(spreadList.length).keys()),
+        datasets: [
+          {
+            label: 'spread',
+            data: spreadList,
+            pointStyle: false,
+            fill: true,
+            borderWidth: 2,
+            tension: 0.1,
+          },
+        ],
+      },
+      options: {
+        plugins: {
+          colors: {
+            enabled: true,
+          },
+          title: {
+            display: true,
+            text: `${marketA} - ${marketB}`,
+          },
+        },
+      },
+    };
+
+    return spreadChartConfig;
+  }
+
+  getPriceComparisonChartConfig({
+    marketA,
+    marketACandles,
+    marketB,
+    marketBCandles,
+  }: PriceComparison) {
+    const marketAPrices = marketACandles.map((candle) => Number(candle.close));
+    const marketBPrices = marketBCandles.map((candle) => Number(candle.close));
+
+    const n = marketAPrices.length;
+
+    const sumA = marketAPrices.reduce((sum, price) => sum + price, 0);
+    const sumB = marketBPrices.reduce((sum, price) => sum + price, 0);
+
+    const normalizedMarketAPrices = marketAPrices.map((price) => price / sumA);
+    const normalizedMarketBPrices = marketBPrices.map((price) => price / sumB);
+
+    const priceComparisonChartConfig: ChartConfiguration<'line'> = {
+      type: 'line',
+      data: {
+        labels: Array.from(Array(n).keys()),
+        datasets: [
+          {
+            label: marketA,
+            data: normalizedMarketAPrices,
+            pointStyle: false,
+            fill: true,
+            borderWidth: 2,
+            tension: 0.1,
+          },
+          {
+            label: marketB,
+            data: normalizedMarketBPrices,
+            pointStyle: false,
+            fill: true,
+            borderWidth: 2,
+            tension: 0.1,
+          },
+        ],
+      },
+      options: {
+        plugins: {
+          colors: {
+            enabled: true,
+          },
+          title: {
+            display: true,
+            text: `${marketA} - ${marketB} Price Comparison`,
+          },
+        },
+      },
+    };
+
+    return priceComparisonChartConfig;
   }
 }

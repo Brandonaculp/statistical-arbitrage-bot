@@ -12,6 +12,7 @@ export interface CointegrationResult {
   hedgeRatio: number;
   zeroCrossing: number;
   zscoreList: number[];
+  spreadList: number[];
 }
 
 @Injectable()
