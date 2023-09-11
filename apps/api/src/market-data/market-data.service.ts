@@ -1,15 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Config } from 'src/config';
 import { DydxService } from 'src/dydx/dydx.service';
-import {
-  CandleResolution,
-  CandleResponseObject,
-  Market,
-} from '@dydxprotocol/v3-client';
+import { CandleResponseObject } from '@dydxprotocol/v3-client';
 import { CointService, CointegrationResult } from 'src/coint/coint.service';
+import { CointPairsDto, MarektPricesDto, MarektsPricesDto } from './dto';
 
-interface CointPair extends CointegrationResult {
+export interface CointPair extends CointegrationResult {
   marketA: string;
   marketB: string;
 }
@@ -18,7 +13,6 @@ interface CointPair extends CointegrationResult {
 export class MarketDataService {
   constructor(
     private readonly dydx: DydxService,
-    private readonly config: ConfigService<Config, true>,
     private readonly coint: CointService,
   ) {}
 
@@ -33,31 +27,34 @@ export class MarketDataService {
     return onlineMarkets;
   }
 
-  async getMarketPrices(market: Market) {
+  async getMarketPrices({
+    market,
+    candleLimit,
+    candleResolution,
+  }: MarektPricesDto) {
     const client = this.dydx.getPublicClient();
-    const limit = this.config.get('CANDLE_LIMIT', { infer: true });
-    const resolution = this.config.get('CANDLE_RESOLUTION', {
-      infer: true,
-    }) as CandleResolution;
 
     const { candles } = await client.public.getCandles({
       market,
-      resolution,
-      limit,
+      resolution: candleResolution,
+      limit: candleLimit,
     });
 
-    if (candles.length !== limit) return [];
+    if (candles.length !== candleLimit) return [];
 
     return candles;
   }
 
-  async getMarketsPrices() {
+  async getMarketsPrices(dto: MarektsPricesDto) {
     const markets = await this.getTradeableMarkets();
 
     const marketsPrices: Record<string, CandleResponseObject[]> = {};
 
     for (const market of markets) {
-      const marketPrices = await this.getMarketPrices(market.market);
+      const marketPrices = await this.getMarketPrices({
+        market: market.market,
+        ...dto,
+      });
       if (marketPrices.length === 0) continue;
       marketsPrices[market.market] = marketPrices;
     }
@@ -69,8 +66,8 @@ export class MarketDataService {
     return candles.map((candle) => Number(candle.close));
   }
 
-  async getCointegratedPairs() {
-    const marketsPrices = await this.getMarketsPrices();
+  async getCointegratedPairs(dto: CointPairsDto) {
+    const marketsPrices = await this.getMarketsPrices(dto);
     const markets = Object.keys(marketsPrices);
 
     const cointPairs: CointPair[] = [];
